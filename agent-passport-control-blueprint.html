@@ -1,0 +1,1576 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agent Passport Control Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one reading column on security-paper, wide figures break out to 1120px; a sticky "checkpoint" rail of section links on top. */
+:root{
+  --paper:#EEF1F5;        /* security-paper ground */
+  --panel:#FFFFFF;
+  --ink:#14213A;          /* passport navy ink */
+  --ink-2:#55617A;
+  --line:#C9D1DE;
+  --line-soft:#DDE3EC;
+  --stamp:#6A3FA3;        /* immigration-stamp violet = agent / our layer */
+  --stamp-soft:#EEE7F8;
+  --human:#0E7A63;        /* human evidence / admitted */
+  --human-soft:#E1F2EC;
+  --warn:#A8650F;
+  --warn-soft:#FBEFD9;
+  --bad:#B42318;
+  --bad-soft:#FBE4E1;
+  --grey-soft:#E7EBF1;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0E1420;--panel:#151D2C;--ink:#E3E8F0;--ink-2:#9AA6BA;--line:#2B364A;--line-soft:#222C3D;
+  --stamp:#B48CF2;--stamp-soft:#2A2140;--human:#3CC6A2;--human-soft:#12302A;--warn:#E6AE55;--warn-soft:#33270F;
+  --bad:#F2786C;--bad-soft:#3A1C1A;--grey-soft:#1D2638;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0E1420;--panel:#151D2C;--ink:#E3E8F0;--ink-2:#9AA6BA;--line:#2B364A;--line-soft:#222C3D;
+  --stamp:#B48CF2;--stamp-soft:#2A2140;--human:#3CC6A2;--human-soft:#12302A;--warn:#E6AE55;--warn-soft:#33270F;
+  --bad:#F2786C;--bad-soft:#3A1C1A;--grey-soft:#1D2638;color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:400 16px/1.62 var(--f-body);-webkit-font-smoothing:antialiased}
+a{color:var(--stamp);text-underline-offset:2px}
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--stamp);outline-offset:2px;border-radius:4px}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+.wrap{max-width:1120px;margin:0 auto;padding-inline:20px}
+.prose{max-width:70ch}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(2.3rem,6vw,4.4rem);font-weight:800;font-stretch:118%;line-height:1}
+h2{font-size:clamp(1.55rem,3vw,2.15rem);font-weight:760;font-stretch:112%;line-height:1.12}
+h3{font-size:1.12rem;font-weight:700;font-stretch:105%;line-height:1.25}
+p{margin:0}
+.stack>*+*{margin-top:14px}
+.eyebrow{font:600 11.5px/1.2 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--stamp)}
+.muted{color:var(--ink-2)}
+.small{font-size:.9rem}
+
+/* hero */
+header.hero{padding-block:44px 30px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:36px;align-items:end}
+.lede{font-size:1.18rem;line-height:1.5;max-width:46ch;margin-top:18px}
+.mrz{font:500 clamp(11px,1.45vw,15px)/1.55 var(--f-mono);letter-spacing:.14em;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;white-space:pre}
+.mrz-cap{font:500 11px var(--f-mono);color:var(--ink-2);margin-top:8px;letter-spacing:.04em}
+.concepts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:34px;border-top:2px solid var(--ink);border-bottom:1px solid var(--line)}
+.concepts div{padding:14px 16px 16px 0}
+.concepts div+div{padding-left:16px;border-left:1px solid var(--line)}
+.concepts b{display:block;font-family:var(--f-display);font-stretch:110%;font-size:1.05rem}
+.concepts span{font-size:.92rem;color:var(--ink-2)}
+
+/* rail */
+nav.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--paper) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.rail .wrap{display:flex;gap:4px;overflow-x:auto;padding-block:8px;scrollbar-width:none}
+nav.rail a{flex:none;font:500 12.5px var(--f-mono);color:var(--ink-2);text-decoration:none;padding:6px 10px;border-radius:999px;white-space:nowrap}
+nav.rail a:hover{color:var(--ink);background:var(--grey-soft)}
+nav.rail a.on{color:var(--paper);background:var(--ink)}
+
+section{padding-block:56px;border-top:1px solid var(--line)}
+section>.wrap>.head{display:grid;gap:10px;margin-bottom:24px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px}
+.two>*{min-width:0}
+
+figure{margin:22px 0 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+figcaption{font-size:.9rem;color:var(--ink-2);margin-top:12px;max-width:80ch}
+.scroll{overflow-x:auto}
+.scroll>svg{display:block;width:100%;min-width:760px;height:auto}
+svg text{font-family:var(--f-body)}
+.d-box{fill:var(--panel);stroke:var(--line);stroke-width:1.2}
+.d-soft{fill:var(--grey-soft);stroke:var(--line);stroke-width:1}
+.d-new{fill:var(--stamp-soft);stroke:var(--stamp);stroke-width:1.4}
+.d-hum{fill:var(--human-soft);stroke:var(--human);stroke-width:1.2}
+.d-t{fill:var(--ink);font-size:13px;font-weight:600}
+.d-s{fill:var(--ink-2);font-size:11px;font-family:var(--f-mono)}
+.d-lab{fill:var(--ink-2);font-size:10.5px;font-family:var(--f-mono);letter-spacing:.08em}
+.d-labv{fill:var(--stamp);font-size:10.5px;font-family:var(--f-mono);letter-spacing:.08em;font-weight:600}
+.d-arr{stroke:var(--ink-2);stroke-width:1.4;fill:none}
+.d-arrv{stroke:var(--stamp);stroke-width:1.6;fill:none}
+.d-dash{stroke:var(--ink-2);stroke-width:1.2;fill:none;stroke-dasharray:4 4}
+.d-head{fill:var(--ink-2)}
+.d-headv{fill:var(--stamp)}
+.d-ink{fill:var(--ink)}
+.d-stamp{fill:var(--stamp)}
+.d-human{fill:var(--human)}
+.d-line{stroke:var(--line);stroke-width:1}
+
+/* tables */
+.tbl{overflow-x:auto;margin-top:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+th{font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);background:var(--grey-soft)}
+tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+
+.chip{display:inline-flex;align-items:center;gap:6px;font:500 11.5px/1 var(--f-mono);padding:5px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);white-space:nowrap}
+.chip.v{border-color:var(--stamp);color:var(--stamp);background:var(--stamp-soft)}
+.chip.h{border-color:var(--human);color:var(--human);background:var(--human-soft)}
+.chip.w{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.chip.b{border-color:var(--bad);color:var(--bad);background:var(--bad-soft)}
+.chip.g{background:var(--grey-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.facts div{padding:12px 14px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+.facts dt{font:600 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.facts dd{margin:4px 0 0;font-size:.95rem}
+
+.find{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px 14px;margin-top:6px}
+.find .k{font:600 11px var(--f-mono);color:var(--stamp);padding-top:4px;letter-spacing:.06em}
+ul.tight{margin:6px 0 0;padding-left:1.1em}
+ul.tight li+li{margin-top:4px}
+
+pre.code{background:var(--grey-soft);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;font:400 12.5px/1.55 var(--f-mono);margin:10px 0 0;color:var(--ink)}
+pre.code .c{color:var(--ink-2)}
+pre.code .k{color:var(--stamp);font-weight:600}
+
+/* stack */
+.stackrows{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);margin-top:20px}
+.srow{display:grid;grid-template-columns:200px minmax(0,1fr) 150px 92px;gap:0;border-top:1px solid var(--line-soft)}
+.srow:first-child{border-top:0}
+.srow>div{padding:14px 16px;min-width:0}
+.srow .lname{border-right:1px solid var(--line-soft)}
+.srow .lname b{font-family:var(--f-display);font-stretch:110%;font-size:1.05rem;display:block}
+.srow .lname .n{font:600 11px var(--f-mono);color:var(--stamp);letter-spacing:.08em}
+.srow .lname span{font-size:.86rem;color:var(--ink-2);display:block;margin-top:2px}
+.srow .sf{border-left:1px solid var(--line-soft);font-size:.86rem}
+.srow .ph{border-left:1px solid var(--line-soft);font:600 12px var(--f-mono)}
+.srow.hdr{background:var(--grey-soft)}
+.srow.hdr>div{padding:8px 16px;font:600 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+
+/* walkthrough */
+.wt{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;margin-top:20px}
+.wt>*{min-width:0}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{font:500 13px var(--f-body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;line-height:1.25}
+.seg button small{display:block;font:400 11px var(--f-mono);color:var(--ink-2);margin-top:2px}
+.seg button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.seg button[aria-pressed="true"] small{color:color-mix(in srgb,var(--paper) 75%,transparent)}
+.steps{display:flex;gap:4px;margin-top:12px;flex-wrap:wrap}
+.steps button{font:500 12px var(--f-mono);border:1px solid var(--line);background:var(--panel);color:var(--ink-2);border-radius:999px;padding:6px 10px;cursor:pointer}
+.steps button[aria-current="step"]{background:var(--stamp);border-color:var(--stamp);color:#fff}
+.wt-stage{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+.wt-stage svg{display:block;width:100%;height:auto}
+.wt-tl{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+.wt-ctrl{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.btn{font:600 13px var(--f-body);border:1px solid var(--ink);background:var(--panel);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn:disabled{opacity:.4;cursor:default}
+.wt-panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.wt-panel h3{font-size:1.2rem}
+.ev{display:grid;gap:8px}
+.ev-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:8px}
+.ev-row .s{font-size:.88rem;font-weight:600}
+.ev-row .o{font:400 12px var(--f-mono);color:var(--ink-2);grid-column:1}
+.ev-row .e{grid-row:1/span 2;grid-column:2;align-self:center;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.meter{position:relative;height:34px;border-radius:8px;overflow:hidden;display:grid;grid-template-columns:5fr 6fr 5fr;border:1px solid var(--line)}
+.meter span{display:flex;align-items:center;justify-content:center;font:600 10.5px var(--f-mono);letter-spacing:.06em}
+.meter .zh{background:var(--human-soft);color:var(--human)}
+.meter .zu{background:var(--grey-soft);color:var(--ink-2)}
+.meter .za{background:var(--stamp-soft);color:var(--stamp)}
+.meter i{position:absolute;top:0;bottom:0;width:3px;background:var(--ink);transform:translateX(-1.5px);transition:left .5s ease}
+.meter-lab{display:flex;justify-content:space-between;font:500 11px var(--f-mono);color:var(--ink-2);margin-top:4px}
+.passport{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:linear-gradient(180deg,var(--stamp-soft),var(--panel) 60%)}
+.passport .pp-h{display:flex;justify-content:space-between;padding:8px 12px;font:600 10.5px var(--f-mono);letter-spacing:.12em;border-bottom:1px solid var(--line);color:var(--stamp)}
+.passport dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:0;padding:10px 12px;font-size:.88rem}
+.passport dt{font:500 10.5px var(--f-mono);color:var(--ink-2);letter-spacing:.06em;text-transform:uppercase;padding-top:2px}
+.passport dd{margin:0}
+.passport .pp-mrz{font:500 11px/1.5 var(--f-mono);letter-spacing:.1em;padding:8px 12px;border-top:1px dashed var(--line);overflow-x:auto;white-space:pre;color:var(--ink)}
+
+/* sim */
+.sim{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:18px;margin-top:20px}
+.sim>*{min-width:0}
+.sim .ctl{display:grid;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.sim .ctl label.g{font:600 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block;margin-bottom:6px}
+.sim .out{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.stampbox{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.stamp{display:inline-block;transform:rotate(-6deg);border:3px double currentColor;border-radius:10px;padding:8px 14px;font:800 1.15rem/1.1 var(--f-display);font-stretch:120%;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+.stamp small{display:block;font:600 10px var(--f-mono);letter-spacing:.12em;margin-top:4px}
+.stamp.admit{color:var(--human)}.stamp.slow{color:var(--warn)}.stamp.visa{color:var(--stamp)}.stamp.ask{color:var(--warn)}.stamp.refuse{color:var(--bad)}.stamp.obs{color:var(--ink-2)}
+.outcomes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px}
+.outcomes div{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.outcomes b{font-family:var(--f-display);font-stretch:112%;display:block;font-size:.98rem}
+.outcomes span{font-size:.85rem;color:var(--ink-2)}
+
+/* visa doc & prompt */
+.visa-doc{border:1px solid var(--stamp);border-radius:12px;background:var(--panel);overflow:hidden;position:relative}
+.visa-doc .vh{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;background:var(--stamp-soft);border-bottom:1px solid var(--stamp)}
+.visa-doc .vh b{font-family:var(--f-display);font-stretch:125%;font-weight:800;letter-spacing:.1em;color:var(--stamp)}
+.visa-doc dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;margin:0;padding:12px 14px;font-size:.9rem}
+.visa-doc dt{font:500 10.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);padding-top:3px}
+.visa-doc dd{margin:0}
+.visa-doc .vmrz{font:500 11px/1.5 var(--f-mono);letter-spacing:.1em;border-top:1px dashed var(--line);padding:8px 14px;white-space:pre;overflow-x:auto}
+.visa-doc .vstamp{position:absolute;right:14px;top:56px;transform:rotate(-9deg);color:var(--stamp);border:2px solid var(--stamp);border-radius:50%;width:96px;height:96px;display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 10px/1.25 var(--f-mono);letter-spacing:.08em;text-align:center;opacity:.85}
+.prompt{border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:0 10px 30px -18px rgba(20,33,58,.45);padding:16px;display:grid;gap:10px;max-width:420px}
+.prompt .who{display:flex;gap:10px;align-items:center}
+.prompt .av{width:34px;height:34px;border-radius:8px;background:var(--stamp-soft);border:1px solid var(--stamp);display:flex;align-items:center;justify-content:center;font:700 13px var(--f-mono);color:var(--stamp)}
+.prompt ul{margin:0;padding-left:1.1em;font-size:.92rem}
+.prompt .acts{display:flex;gap:8px;flex-wrap:wrap}
+.prompt .acts span{font:600 12.5px var(--f-body);padding:7px 11px;border-radius:7px;border:1px solid var(--line)}
+.prompt .acts span.p{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h3{margin-bottom:6px}
+.card ul{margin:6px 0 0;padding-left:1.1em;font-size:.92rem}
+.card ul li+li{margin-top:5px}
+.tag{font:600 10px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-left:4px;vertical-align:1px}
+.tag.p0{background:var(--bad-soft);color:var(--bad)}.tag.p1{background:var(--warn-soft);color:var(--warn)}.tag.p2{background:var(--grey-soft);color:var(--ink-2)}
+
+.callout{border-left:3px solid var(--stamp);padding:10px 14px;background:var(--stamp-soft);border-radius:0 8px 8px 0;font-size:.95rem}
+footer{padding-block:40px 60px;border-top:1px solid var(--line);font-size:.88rem;color:var(--ink-2)}
+footer ul{padding-left:1.1em;columns:2;column-gap:32px}
+footer li{break-inside:avoid;margin-bottom:4px}
+
+@media (max-width:900px){
+  .hero-grid,.two,.wt,.sim{grid-template-columns:minmax(0,1fr)}
+  .concepts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .concepts div:nth-child(3){border-left:0;padding-left:0}
+  .srow{grid-template-columns:minmax(0,1fr)}
+  .srow .lname,.srow .sf,.srow .ph{border:0}
+  .srow .sf,.srow .ph{padding-top:0}
+  .srow.hdr{display:none}
+  footer ul{columns:1}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Build blueprint · 6 Oct 2026</p>
+        <h1 style="margin-top:12px">Agent Passport Control</h1>
+        <p class="lede">Switchfrog tells a SaaS app <em>whether</em> an agent is driving a logged-in session. This plan builds what sits on top: <strong>which</strong> agent, acting for <strong>whom</strong>, allowed to do <strong>what</strong>, enforced on every action and written to a log.</p>
+      </div>
+      <div>
+        <div class="mrz" aria-label="Machine-readable zone of an example agent visa">V&lt;LDG&lt;CLAUDE&lt;IN&lt;CHROME&lt;&lt;RECOGNISED&lt;&lt;&lt;&lt;&lt;&lt;
+V7F3A21&lt;USR8A41&lt;&lt;VIEW&lt;EXPORT&lt;&lt;261105&lt;D41C9&lt;&lt;</div>
+        <p class="mrz-cap">Example visa, machine-readable zone: agent · tier · holder · scopes · expiry · bound device</p>
+      </div>
+    </div>
+    <div class="concepts" role="list">
+      <div role="listitem"><b>Passport</b><span>Who the agent is and how sure we are: a signature, or behaviour alone.</span></div>
+      <div role="listitem"><b>Visa</b><span>What this agent may do for this person on this site, and until when.</span></div>
+      <div role="listitem"><b>Border control</b><span>A decision on each sensitive action: admit, slow, ask the person, reroute, bill or refuse.</span></div>
+      <div role="listitem"><b>Entry log</b><span>Every agent action, tied to the agent, the visa and the person behind it.</span></div>
+    </div>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Sections">
+  <div class="wrap">
+    <a href="#teardown">Switchfrog teardown</a>
+    <a href="#delta">Where we go further</a>
+    <a href="#stack">Build stack</a>
+    <a href="#detect">Detection walkthrough</a>
+    <a href="#signals">Signals & model</a>
+    <a href="#passport">Signed agents</a>
+    <a href="#visa">Issuing a visa</a>
+    <a href="#binding">Binding</a>
+    <a href="#border">Border decisions</a>
+    <a href="#bench">Benchmark lab</a>
+    <a href="#data">Data & APIs</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#missing">Gaps in the plan</a>
+  </div>
+</nav>
+
+<!-- ============ 1. TEARDOWN ============ -->
+<section id="teardown">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">1 · Competitor teardown</p>
+      <h2>Switchfrog, taken apart</h2>
+      <p class="prose muted">Sources: their docs (including the full <code>llms-full.txt</code> corpus), the hosted browser SDK (<code>api.switchfrog.com/sdk/v1.js</code>, 128 KB, read on 6 Oct 2026), the marketing site, their two public GitHub repos and the a16z speedrun listing. The marketing site promises more than the API returns, and the SDK shows how detection actually works.</p>
+    </div>
+
+    <dl class="facts">
+      <div><dt>Company</dt><dd>Founded 2026 · 2 people · San Francisco</dd></div>
+      <div><dt>Backing</dt><dd>a16z speedrun, cohort SR007</dd></div>
+      <div><dt>CEO</dt><dd>Tommy McCormick (ex-Faire data infrastructure)</dd></div>
+      <div><dt>Pitch</dt><dd>“The agent layer for the human web”: identify, govern, monetise</dd></div>
+      <div><dt>Stage</dt><dd>Early access; blog empty; dashboards marked illustrative; no named customers</dd></div>
+      <div><dt>Open source</dt><dd>GTM template; Better Auth adapter (not on npm)</dd></div>
+    </dl>
+
+    <div class="two" style="margin-top:28px">
+      <div class="stack">
+        <h3>How their product works, per the docs</h3>
+        <ol class="tight small" style="padding-left:1.2em">
+          <li>A script tag (or a managed Cloudflare Zaraz install) loads the SDK with an <code>sf_pk_</code> publishable key and starts an anonymous session.</li>
+          <li>The SDK batches behaviour to <code>/v1/sdk/events</code>. Evidence and scoring stay on their servers.</li>
+          <li><code>client.identify({userId, accountId})</code> labels the session (unverified). The backend can attach verified identity with <code>POST /v1/identify</code>.</li>
+          <li>When the user starts a protected action, the page sends an opaque, signed, expiring <strong>session token</strong> to your backend. Forms tagged <code>data-switchfrog</code> get it injected as <code>switchfrog_session_token</code>.</li>
+          <li>Your backend calls <code>POST /v1/verify {actionId, sessionToken}</code> with the <code>sf_sk_</code> secret key.</li>
+          <li>The response is <code>{verdict, score}</code>, where the score is fixed per verdict: <code>human = 1</code>, <code>unknown = 50</code>, <code>agent = 99</code>.</li>
+          <li>Your own code decides what to do. Their example: human → allow, agent → hold for account-owner review (HTTP 202), unknown → deny.</li>
+        </ol>
+      </div>
+      <div class="stack">
+        <h3>What the SDK actually collects</h3>
+        <div class="find small">
+          <span class="k">POINTER</span><span>pointerdown/up/move/cancel with <em>coalesced</em> samples: x, y, time, pressure, contact width and height, pointer type, <code>isTrusted</code>, buttons, modifier keys</span>
+          <span class="k">TARGET</span><span>tag, ARIA role, input type, disabled/readonly and the element's <strong>bounding box</strong>, so they can measure how far a click lands from centre</span>
+          <span class="k">KEYS</span><span>keydown/keyup ordinals by physical key code, repeat, key class, composition (IME); input events keep <code>inputType</code> and the <em>change in length</em>, never the text</span>
+          <span class="k">PAGE</span><span>focus/blur, visibility, pageshow/hide, scroll positions, wheel deltas, resize, copy/cut/paste, submit/formdata</span>
+          <span class="k">PROBES</span><span><code>navigator.webdriver</code> and 17 automation globals (Selenium, ChromeDriver <code>cdc_</code> keys, Playwright bindings, Cypress, PhantomJS, Nightmare, WebdriverIO)</span>
+          <span class="k">CLAUDE</span><span>A DOM watcher checks for three element IDs, <code>#claude-phantom-cursor</code>, <code>-plain</code> and <code>-styled</code>, which by their names are a cursor overlay Claude in Chrome draws on the page. This is the only product-specific check in the code. It names one driver and stops working as soon as Anthropic renames or removes the overlay. (CHEQ's teardown documents other Claude artifacts: <code>#claude-agent-stop-container</code> and a <code>.claude-agent-glow-border</code>.)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="two" style="margin-top:28px">
+      <div class="stack">
+        <h3>The WebMCP product (“Actions”)</h3>
+        <p class="small">Three capture levels: <code>behavior</code> → <code>requests</code> → <code>schema</code>. At the higher levels the SDK records the <em>structure</em> of same-origin fetch/XHR traffic (methods, paths, query names, JSON property names and types, never values). From that they generate an OpenAPI document (<code>GET /v1/discovery/openapi.json</code>) and multi-step “workflow tools”. The SDK registers these through <code>document.modelContext.registerTool</code> with <code>readOnlyHint</code>, <code>consequentialHint</code> and <code>untrustedContentHint</code> annotations. Any workflow with a non-GET step needs a host-supplied <code>confirm()</code> hook. Tools run as the logged-in user, and the caller is never identified.</p>
+        <p class="small muted">Their docs state that, when model refinement is on, path segments and property names may be sent to the OpenAI Responses API. Regulated buyers will object to that.</p>
+      </div>
+      <div class="stack">
+        <h3>What to copy and where they are thin</h3>
+        <ul class="tight small">
+          <li><strong>Copy:</strong> one-tag install, Cloudflare Zaraz and GTM installers, consent bridges for OneTrust, Cookiebot and Sourcepoint, publishable vs secret keys with a 7-day rotation grace, documented retry rules (at most 3 attempts with jittered 250/500 ms waits, 503 only), <code>llms.txt</code>, a docs MCP server and a “set up with a coding agent” prompt.</li>
+          <li><strong>Thin:</strong> the verify API returns no driver name, no confidence and no reasons, though the marketing webhook shows <code>driver: "claude-in-chrome", confidence: 0.97</code>.</li>
+          <li><strong>Missing:</strong> no signed-agent verification, no user consent, no visa, no hosted policy, no audit log, no cross-site memory and no published accuracy. “Unknown” and every allow/deny rule are left to the customer's code.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. DELTA ============ -->
+<section id="delta">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">2 · Positioning in one picture</p>
+      <h2>Where we go further</h2>
+      <p class="prose muted">Both products start with the same two moves: watch the session, then answer one server call per protected action. Ours adds four hops after that call (passport, visa, policy, entry log) and gives the call a richer answer.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1080 300" role="img" aria-label="Two pipelines compared. Switchfrog: browser SDK, scorer, your backend, verify call, a three-value verdict, then your own if/else. Passport Control: edge and browser sensors, passport, decide call, visa plus policy, a seven-way outcome, entry log. Four of the six steps are new.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
+          <marker id="ahv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-headv"/></marker>
+        </defs>
+        <text x="20" y="30" class="d-lab">SWITCHFROG TODAY</text>
+        <g>
+          <rect x="20" y="44" width="150" height="62" rx="8" class="d-box"/><text x="95" y="70" text-anchor="middle" class="d-t">Browser SDK</text><text x="95" y="89" text-anchor="middle" class="d-s">behaviour + probes</text>
+          <rect x="196" y="44" width="150" height="62" rx="8" class="d-box"/><text x="271" y="70" text-anchor="middle" class="d-t">Scorer</text><text x="271" y="89" text-anchor="middle" class="d-s">server-side, opaque</text>
+          <rect x="372" y="44" width="150" height="62" rx="8" class="d-box"/><text x="447" y="70" text-anchor="middle" class="d-t">Your backend</text><text x="447" y="89" text-anchor="middle" class="d-s">gets session token</text>
+          <rect x="548" y="44" width="150" height="62" rx="8" class="d-box"/><text x="623" y="70" text-anchor="middle" class="d-t">POST /v1/verify</text><text x="623" y="89" text-anchor="middle" class="d-s">actionId + token</text>
+          <rect x="724" y="44" width="150" height="62" rx="8" class="d-box"/><text x="799" y="70" text-anchor="middle" class="d-t">Verdict</text><text x="799" y="89" text-anchor="middle" class="d-s">human·unknown·agent</text>
+          <rect x="900" y="44" width="160" height="62" rx="8" class="d-soft"/><text x="980" y="70" text-anchor="middle" class="d-t">Your if / else</text><text x="980" y="89" text-anchor="middle" class="d-s">allow · review · deny</text>
+          <line x1="170" y1="75" x2="194" y2="75" class="d-arr" marker-end="url(#ah)"/>
+          <line x1="346" y1="75" x2="370" y2="75" class="d-arr" marker-end="url(#ah)"/>
+          <line x1="522" y1="75" x2="546" y2="75" class="d-arr" marker-end="url(#ah)"/>
+          <line x1="698" y1="75" x2="722" y2="75" class="d-arr" marker-end="url(#ah)"/>
+          <line x1="874" y1="75" x2="898" y2="75" class="d-arr" marker-end="url(#ah)"/>
+        </g>
+        <text x="20" y="160" class="d-labv">PASSPORT CONTROL</text>
+        <g>
+          <rect x="20" y="174" width="150" height="76" rx="8" class="d-new"/><text x="95" y="200" text-anchor="middle" class="d-t">Sensors</text><text x="95" y="219" text-anchor="middle" class="d-s">behaviour +</text><text x="95" y="234" text-anchor="middle" class="d-s">signatures at edge</text>
+          <rect x="196" y="174" width="150" height="76" rx="8" class="d-new"/><text x="271" y="200" text-anchor="middle" class="d-t">Passport</text><text x="271" y="219" text-anchor="middle" class="d-s">tier · driver ·</text><text x="271" y="234" text-anchor="middle" class="d-s">confidence · reasons</text>
+          <rect x="372" y="174" width="150" height="76" rx="8" class="d-box"/><text x="447" y="200" text-anchor="middle" class="d-t">POST /v1/decide</text><text x="447" y="219" text-anchor="middle" class="d-s">session · action ·</text><text x="447" y="234" text-anchor="middle" class="d-s">resource</text>
+          <rect x="548" y="174" width="150" height="76" rx="8" class="d-new"/><text x="623" y="200" text-anchor="middle" class="d-t">Visa + policy</text><text x="623" y="219" text-anchor="middle" class="d-s">scopes · expiry ·</text><text x="623" y="234" text-anchor="middle" class="d-s">Cedar rules</text>
+          <rect x="724" y="174" width="150" height="76" rx="8" class="d-new"/><text x="799" y="200" text-anchor="middle" class="d-t">Outcome</text><text x="799" y="219" text-anchor="middle" class="d-s">admit · slow · ask ·</text><text x="799" y="234" text-anchor="middle" class="d-s">reroute · bill · refuse</text>
+          <rect x="900" y="174" width="160" height="76" rx="8" class="d-new"/><text x="980" y="200" text-anchor="middle" class="d-t">Entry log</text><text x="980" y="219" text-anchor="middle" class="d-s">agent · visa · person</text><text x="980" y="234" text-anchor="middle" class="d-s">→ SIEM · network</text>
+          <line x1="170" y1="212" x2="194" y2="212" class="d-arrv" marker-end="url(#ahv)"/>
+          <line x1="346" y1="212" x2="370" y2="212" class="d-arrv" marker-end="url(#ahv)"/>
+          <line x1="522" y1="212" x2="546" y2="212" class="d-arrv" marker-end="url(#ahv)"/>
+          <line x1="698" y1="212" x2="722" y2="212" class="d-arrv" marker-end="url(#ahv)"/>
+          <line x1="874" y1="212" x2="898" y2="212" class="d-arrv" marker-end="url(#ahv)"/>
+        </g>
+        <path d="M447 106 V 172" class="d-dash"/>
+        <text x="456" y="144" class="d-s">same integration point</text>
+        <text x="20" y="282" class="d-s">Violet = hops Switchfrog does not have. Grey dashed = the one call both products ask the customer to make.</text>
+      </svg>
+      </div>
+      <figcaption>Switchfrog's answer stops at a three-value verdict, and every allow or deny rule then lives in the customer's code. Ours keeps the same integration point but answers with a decision the customer can configure, a reason, and a log line.</figcaption>
+    </figure>
+
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:22%">Question</th><th>Switchfrog (as shipped)</th><th>Passport Control</th></tr></thead>
+        <tbody>
+          <tr><td>Is an agent driving?</td><td>Yes, from behaviour plus automation probes</td><td>Yes, plus a mid-session handoff point (when the person stops and the agent starts)</td></tr>
+          <tr><td>Which agent?</td><td>Marketing says yes; the API returns no driver</td><td>Named driver plus tier (verified, recognised, unknown automation or human) with a calibrated confidence and the top reasons</td></tr>
+          <tr><td>Can it prove that?</td><td>No signature support</td><td>Web Bot Auth and Visa TAP verification at the edge; an attestation handshake for in-browser agents</td></tr>
+          <tr><td>Did the person allow it?</td><td>No</td><td>Visas: an in-page consent prompt, admin allow-lists, a passkey co-sign for consequential actions, one-click revoke</td></tr>
+          <tr><td>What happens now?</td><td>Customer writes the rule</td><td>Hosted policy per action with seven outcomes and observe mode; agents get responses they can read and explain</td></tr>
+          <tr><td>What happened before?</td><td>Dashboard (marked illustrative)</td><td>Hash-chained entry log, SIEM export and audit packs</td></tr>
+          <tr><td>How accurate is it?</td><td>Not published</td><td>A public benchmark with false-positive rates for each agent</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. STACK ============ -->
+<section id="stack">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">3 · How it is structured</p>
+      <h2>The build stack, in the order we build it</h2>
+      <p class="prose muted">Seven layers. Each one consumes the layer above it, so the build order follows the list. The third column shows what Switchfrog ships at each layer today.</p>
+    </div>
+    <div class="stackrows" role="table" aria-label="Seven-layer build stack">
+      <div class="srow hdr" role="row"><div role="columnheader">Layer</div><div role="columnheader">Components</div><div role="columnheader">Switchfrog</div><div role="columnheader">Phase</div></div>
+      <div class="srow" role="row"><div class="lname" role="cell"><span class="n">L1</span><b>Prove</b><span>Know the detector works before selling it</span></div><div role="cell"><div class="chips"><span class="chip v">Harness app (20 tasks)</span><span class="chip v">Agent runner matrix</span><span class="chip v">Human cohort</span><span class="chip v">Labelled session store</span><span class="chip v">Release gate on FPR</span><span class="chip v">Public scorecard</span></div></div><div class="sf" role="cell">Nothing published</div><div class="ph" role="cell">P0</div></div>
+      <div class="srow" role="row"><div class="lname" role="cell"><span class="n">L2</span><b>Sense</b><span>Collect evidence without reading content</span></div><div role="cell"><div class="chips"><span class="chip">Browser sensor SDK (&lt;25 KB gz)</span><span class="chip v">Edge signature verifier</span><span class="chip">Automation &amp; runtime probes</span><span class="chip v">Server request signals (TLS, IP, timing)</span><span class="chip v">Handshake listener</span><span class="chip v">WebMCP <code>agentInvoked</code> capture</span><span class="chip">Consent / CMP bridge</span></div></div><div class="sf" role="cell">Browser SDK, probes, CMP bridges</div><div class="ph" role="cell">P0–P1</div></div>
+      <div class="srow" role="row"><div class="lname" role="cell"><span class="n">L3</span><b>Identify</b><span>Turn evidence into a passport</span></div><div role="cell"><div class="chips"><span class="chip">Session scorer</span><span class="chip v">Driver classifier</span><span class="chip v">Handoff detector (human → agent)</span><span class="chip v">Tiering</span><span class="chip v">Calibration per site</span><span class="chip v">Reason codes</span></div></div><div class="sf" role="cell">Three-value verdict</div><div class="ph" role="cell">P1</div></div>
+      <div class="srow" role="row"><div class="lname" role="cell"><span class="n">L4</span><b>Permit</b><span>Let people grant visas</span></div><div role="cell"><div class="chips"><span class="chip v">Visa service</span><span class="chip v">Consent prompt component</span><span class="chip v">“Agents with access” page</span><span class="chip v">Admin allow-lists</span><span class="chip v">Passkey co-sign</span><span class="chip v">Scope catalogue</span></div></div><div class="sf" role="cell">None</div><div class="ph" role="cell">P2</div></div>
+      <div class="srow" role="row"><div class="lname" role="cell"><span class="n">L5</span><b>Decide</b><span>One call per action, one outcome</span></div><div role="cell"><div class="chips"><span class="chip">Decision API</span><span class="chip v">Policy engine (Cedar)</span><span class="chip v">Seven outcomes</span><span class="chip v">Observe mode</span><span class="chip">Fast-lane tools (WebMCP)</span><span class="chip v">Agent-readable responses</span></div></div><div class="sf" role="cell"><code>/v1/verify</code> + your code; WebMCP tools</div><div class="ph" role="cell">P1–P3</div></div>
+      <div class="srow" role="row"><div class="lname" role="cell"><span class="n">L6</span><b>Record</b><span>Prove what happened</span></div><div role="cell"><div class="chips"><span class="chip v">Entry log (hash-chained)</span><span class="chip v">SIEM export (OCSF)</span><span class="chip">Insights dashboard</span><span class="chip">Metering → billing</span><span class="chip v">Audit packs</span></div></div><div class="sf" role="cell">Dashboard; agent-seat billing planned</div><div class="ph" role="cell">P2–P3</div></div>
+      <div class="srow" role="row"><div class="lname" role="cell"><span class="n">L7</span><b>Network</b><span>Make every site smarter</span></div><div role="cell"><div class="chips"><span class="chip v">Agent directory</span><span class="chip v">Cross-site reputation</span><span class="chip v">Revocation feed (SSF / CAEP)</span><span class="chip v">Handshake spec + provider SDK</span></div></div><div class="sf" role="cell">None</div><div class="ph" role="cell">P4</div></div>
+    </div>
+    <p class="small muted" style="margin-top:10px"><span class="chip v">violet</span> = not offered by Switchfrog today. <span class="chip">plain</span> = parity work we still need.</p>
+  </div>
+</section>
+
+<!-- ============ 4. DETECTION WALKTHROUGH ============ -->
+<section id="detect">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">4 · Interactive walkthrough</p>
+      <h2>How detection reads a session, step by step</h2>
+      <p class="prose muted">Pick who is driving, then step through one small task: search invoices for “northwind”, then press Export. Each step adds evidence. Positive scores point to an agent and negative scores to a person; the sum must clear ±3 before we commit to a verdict. Numbers are illustrative. The lab in section 10 is where real weights come from.</p>
+    </div>
+
+    <div class="seg" id="wt-drivers" role="group" aria-label="Who is driving">
+      <button type="button" data-d="human" aria-pressed="false">Person<small>mouse + keyboard</small></button>
+      <button type="button" data-d="ext" aria-pressed="true">Extension agent<small>e.g. Claude in Chrome (CDP)</small></button>
+      <button type="button" data-d="cua" aria-pressed="false">Computer-use agent<small>OS cursor via xdotool</small></button>
+      <button type="button" data-d="signed" aria-pressed="false">Signed cloud agent<small>Web Bot Auth</small></button>
+    </div>
+    <div class="steps" id="wt-steps" role="group" aria-label="Steps"></div>
+
+    <div class="wt">
+      <div>
+        <div class="wt-stage">
+          <svg id="wt-scene" viewBox="0 0 640 380" role="img" aria-label="Mock SaaS invoices page showing the pointer path, clicks and typing for the selected driver"></svg>
+          <div class="wt-tl"><svg id="wt-tl" viewBox="0 0 640 120" role="img" aria-label="Event timeline for the current step"></svg></div>
+        </div>
+        <div class="wt-ctrl">
+          <button type="button" class="btn" id="wt-prev">← Back</button>
+          <button type="button" class="btn primary" id="wt-next">Next step →</button>
+          <button type="button" class="btn" id="wt-play">Play all</button>
+          <span class="small muted" id="wt-pos"></span>
+        </div>
+      </div>
+      <div class="wt-panel" id="wt-panel" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5. SIGNALS & MODEL ============ -->
+<section id="signals">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">5 · What the sensor measures</p>
+      <h2>Signal families and the scoring model</h2>
+      <p class="prose muted">Durable detection stacks many weak signals. Any one of them can be faked, but faking all of them consistently costs the agent speed. That cost is the moat, and the fast lane (section 9) is the reason to stop paying it.</p>
+    </div>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Family</th><th>What we measure</th><th>Catches</th><th>Spoof cost</th></tr></thead>
+        <tbody>
+          <tr><td><b>Event provenance</b></td><td><code>isTrusted</code> catches only script-driven paths: CDP and Chrome's built-in agent input both arrive as trusted. Also: <code>input</code>/<code>change</code> with no key or pointer on the field; <code>scroll</code> with no wheel, key or touch; a <code>&lt;select&gt;</code> changing with no interaction</td><td>Form-fill tools (Claude's <code>form_input</code>, Playwright <code>fill</code>), Gemini's scroll and select tools</td><td><span class="chip b">high</span> agent must switch to native input</td></tr>
+          <tr><td><b>Pointer kinematics</b></td><td>Moves before each click, teleport ratio (a jump of more than 100 px in under 50 ms just before a click), coalesced count, curvature, overshoot, hover-to-press settle, press duration and its spread, distance from element centre</td><td>Every CDP and xdotool agent. Teleport ratio plus mouse-event rate alone gave 100% recall in TUM's study</td><td><span class="chip w">medium</span> humaniser libraries exist</td></tr>
+          <tr><td><b>Keystroke dynamics</b></td><td>Key events present or not, key gaps and hold times, rollover (next key down before the last one up), chars per <code>input</code> event, <code>inputType</code>, key/code/layout consistency</td><td><code>insertText</code> with no keys; fixed combs (Claude &lt; 1 ms, browser-use 5 ms, xdotool 12 ms); paste with no Ctrl/Cmd+V</td><td><span class="chip w">medium</span> rollover is hard to fake</td></tr>
+          <tr><td><b>Focus &amp; visibility</b></td><td>Trusted input while <code>visibilityState</code> is hidden or <code>hasFocus()</code> is false; <code>hasFocus()</code> true while hidden (Playwright focus emulation); requestAnimationFrame gaps that overlap input</td><td>Agents working in background tabs or tab groups</td><td><span class="chip h">high</span> a person cannot type into a hidden tab</td></tr>
+          <tr><td><b>Cadence</b></td><td>Two-mode gaps (bursts, then multi-second stillness), no micro-jitter between actions, regularity. Timing alone identified 14 LLMs at up to 96% F1</td><td>Every screenshot-and-think loop; also names the model</td><td><span class="chip b">high</span> faking idle motion means acting more slowly</td></tr>
+          <tr><td><b>Environment &amp; artifacts</b></td><td><code>navigator.webdriver</code>, automation globals, agent DOM nodes (Claude's stop container, glow border, a leftover style tag), extension-inserted nodes, VM screen sizes, software WebGL, debugger-attached probes</td><td>Headless and VM agents; known extensions</td><td><span class="chip g">low</span> each artifact is one release from vanishing</td></tr>
+          <tr><td><b>Network &amp; server</b></td><td>Datacenter ASN, provider IP ranges, JA4 vs claimed browser, <code>Sec-Fetch</code> consistency, typeahead called once per string instead of once per key</td><td>Cloud agents (all layers combined: 0.993 accuracy in one study). Local agents share the user's JA4 and IP</td><td><span class="chip w">medium</span></td></tr>
+          <tr><td><b>Declared</b></td><td>Web Bot Auth, Visa TAP, B2 handshake; WebMCP <code>SubmitEvent.agentInvoked</code> (an agent submitted the form, not which agent)</td><td>Agents that choose to identify themselves</td><td><span class="chip h">n/a</span> positive proof</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top:28px">Driver fingerprints: what names the agent</h3>
+    <p class="small muted prose" style="margin-top:6px">Mechanics differ by product because each one injects input its own way. This is what lets a model name the driver, and it drifts with every release. Sources are public teardowns and source code; versions change.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Driver</th><th>Click</th><th>Typing</th><th>Scroll</th><th>Other tells</th></tr></thead>
+        <tbody>
+          <tr><td><b>Claude in Chrome</b><br><span class="small muted">extension, chrome.debugger</span></td><td>1 move → 100 ms → press + release</td><td><code>insertText</code> per char, no keys; form fill sets value with untrusted events</td><td>wheel, deltas of 100</td><td>stop container, glow border, debugger banner; works in background tab group</td></tr>
+          <tr><td><b>Gemini in Chrome</b><br><span class="small muted">Chromium “actor”</span></td><td>down → delay → up at exact centre; move only behind a flag</td><td>key events dispatched synchronously (≈0 ms gaps)</td><td>scroll with no wheel at all</td><td>select changes with no interaction; no DOM artifacts</td></tr>
+          <tr><td><b>Perplexity Comet</b><br><span class="small muted">Chromium fork</span></td><td>pixel-coordinate batches</td><td>whole-string paste-like input</td><td>short discrete bursts</td><td>reads the accessibility tree via CDP; Chrome user agent</td></tr>
+          <tr><td><b>ChatGPT Chrome extension / Codex</b></td><td>chrome.debugger (details unpublished)</td><td>paste-like (ChatGPT agent lineage)</td><td>—</td><td>per-task tab group; acts without taking over the browser</td></tr>
+          <tr><td><b>browser-use</b></td><td>move → 50 ms → press → 80 ms → release at quad centre</td><td>keyDown/char/keyUp, ~5 ms gaps</td><td>synthetic gesture, near instant</td><td>falls back to untrusted <code>this.click()</code></td></tr>
+          <tr><td><b>Playwright / Stagehand</b></td><td>move + press + release pipelined (≈0 ms) at box centre</td><td><code>insertText</code> or script value set</td><td>—</td><td><code>webdriver</code>, <code>__playwright__binding__</code>, focus emulation</td></tr>
+          <tr><td><b>OS computer use</b><br><span class="small muted">Anthropic reference demo</span></td><td>xdotool jump, then click</td><td>12 ms per key in 50-char chunks</td><td>wheel-button clicks</td><td>VM screen size; 2 s settle before each screenshot</td></tr>
+          <tr><td><b>ChatGPT agent (cloud)</b></td><td>—</td><td>paste-like</td><td>—</td><td>signs requests; fixed 1280×960 screen; 88% datacenter IPs</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1080 230" role="img" aria-label="Scoring pipeline: raw events feed decisive rules and per-action features; per-action evidence accumulates into a session score; a sequence model finds the handoff point and names the driver; calibration produces the passport.">
+        <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <rect x="20" y="80" width="140" height="70" rx="8" class="d-box"/><text x="90" y="108" text-anchor="middle" class="d-t">Raw events</text><text x="90" y="127" text-anchor="middle" class="d-s">batched every ~1 s</text>
+        <rect x="210" y="20" width="190" height="70" rx="8" class="d-box"/><text x="305" y="48" text-anchor="middle" class="d-t">Decisive rules</text><text x="305" y="67" text-anchor="middle" class="d-s">untrusted input, webdriver,</text><text x="305" y="81" text-anchor="middle" class="d-s">signatures</text>
+        <rect x="210" y="140" width="190" height="70" rx="8" class="d-box"/><text x="305" y="168" text-anchor="middle" class="d-t">Per-action features</text><text x="305" y="187" text-anchor="middle" class="d-s">~120 features / action</text>
+        <rect x="450" y="80" width="190" height="70" rx="8" class="d-new"/><text x="545" y="108" text-anchor="middle" class="d-t">Evidence accumulator</text><text x="545" y="127" text-anchor="middle" class="d-s">GBDT log-odds, summed (SPRT)</text>
+        <rect x="690" y="20" width="170" height="70" rx="8" class="d-new"/><text x="775" y="48" text-anchor="middle" class="d-t">Sequence model</text><text x="775" y="67" text-anchor="middle" class="d-s">handoff point +</text><text x="775" y="81" text-anchor="middle" class="d-s">driver name</text>
+        <rect x="690" y="140" width="170" height="70" rx="8" class="d-box"/><text x="775" y="168" text-anchor="middle" class="d-t">Calibration</text><text x="775" y="187" text-anchor="middle" class="d-s">per site, isotonic</text>
+        <rect x="910" y="80" width="150" height="70" rx="8" class="d-new"/><text x="985" y="108" text-anchor="middle" class="d-t">Passport</text><text x="985" y="127" text-anchor="middle" class="d-s">tier·driver·conf·why</text>
+        <path d="M160 105 C185 105 185 55 208 55" class="d-arr" marker-end="url(#ah2)"/>
+        <path d="M160 125 C185 125 185 175 208 175" class="d-arr" marker-end="url(#ah2)"/>
+        <path d="M400 55 C425 55 425 105 448 105" class="d-arr" marker-end="url(#ah2)"/><text x="410" y="74" class="d-s">override</text>
+        <path d="M400 175 C425 175 425 125 448 125" class="d-arr" marker-end="url(#ah2)"/>
+        <path d="M640 105 C665 105 665 55 688 55" class="d-arr" marker-end="url(#ah2)"/>
+        <path d="M640 125 C665 125 665 175 688 175" class="d-arr" marker-end="url(#ah2)"/>
+        <path d="M860 55 C885 55 885 105 908 105" class="d-arr" marker-end="url(#ah2)"/>
+        <path d="M860 175 C885 175 885 125 908 125" class="d-arr" marker-end="url(#ah2)"/>
+      </svg>
+      </div>
+      <figcaption>Gradient-boosted trees score each action. The scores add up as log-odds until they cross the human or agent threshold (a sequential probability ratio test), so the verdict arrives in as few actions as the evidence allows and stays “unknown” when it does not. A small sequence model over action tokens finds the moment a person hands over to an agent, using online change-point detection, and names the driver. Decisive rules (an untrusted event, a valid signature) bypass the sum. Train on three classes (human, scripted bot, LLM agent) plus “unknown”: in TUM's study, binary human-vs-bot detectors let 30–39% of agent sessions through as human. Detecting agents never seen in training is weak (AUROC 0.60–0.84), so keep an “agent, driver unknown” label.</figcaption>
+    </figure>
+
+    <div class="two" style="margin-top:24px">
+      <div class="callout"><b>Lab-validate before relying on:</b> the viewport shift when Chrome's debugger banner appears, <code>movementX</code> = 0 on CDP moves, vision-agent clicks falling on the screenshot grid, and screenshots forcing frames in background tabs. Each is plausible and cheap to check in the harness. Debugger-attached probes (the <code>console.groupEnd</code> Proxy trick still worked in March 2026) also flag developers with DevTools open, so treat them as weak.</div>
+      <div class="callout"><b>Collect behaviour, not content:</b> positions, timings, lengths and element roles only. No key values, text or screenshots, and nothing sent to third-party models (Switchfrog's optional OpenAI refinement cannot say this). Compute features in a Web Worker and ship aggregates. Under ePrivacy Art. 5(3), detection for security may be exempt from consent, but detection used to <em>bill</em> agent seats probably is not, and per-user reports can count as employee monitoring.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6. SIGNED AGENTS ============ -->
+<section id="passport">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">6 · The cryptographic passport</p>
+      <h2>Verifying agents that sign their requests</h2>
+      <p class="prose muted">Cloud agents can prove their operator with HTTP Message Signatures (RFC 9421) under the Web Bot Auth profile. Since September 2026 there is a single IETF working-group draft (<code>draft-ietf-webbotauth-httpsig-protocol-00</code>), but deployed agents send two header shapes. Verify at the outermost edge, pass the result to the origin as a header we sign, and let behaviour corroborate. A signature that does not match behaviour raises a spoofing alert.</p>
+    </div>
+    <div class="two">
+      <div class="stack">
+        <h3>What arrives</h3>
+<pre class="code"><span class="c"># draft -00 shape (Google-Agent sends this)</span>
+<span class="k">Signature-Agent</span>: g="https://agent.bot.goog"
+<span class="k">Signature-Input</span>: sig1=("@authority" "signature-agent";key="g");
+  created=1791244800;expires=1791248400;
+  keyid="&lt;JWK SHA-256 thumbprint&gt;";alg="ed25519";
+  tag="web-bot-auth"
+<span class="k">Signature</span>: sig1=:&lt;base64 Ed25519 signature&gt;:
+
+<span class="c"># legacy shape ChatGPT still sends: accept, mark "legacy"</span>
+<span class="k">Signature-Agent</span>: "https://chatgpt.com"
+<span class="k">Signature-Input</span>: sig1=("@authority" "@method" "@path"
+  "signature-agent");created=…;expires=…;keyid="…";
+  nonce="&lt;64 bytes&gt;";tag="web-bot-auth"
+
+<span class="c"># Visa TAP: different tags, keys from Visa's JWKS</span>
+<span class="k">Signature-Input</span>: sig2=("@authority" "@path");…;
+  tag="agent-browser-auth"   <span class="c"># or agent-payer-auth</span></pre>
+      </div>
+      <div class="stack">
+        <h3>What the edge verifier does</h3>
+        <ol class="tight small" style="padding-left:1.2em">
+          <li>Strip inbound copies of our verdict headers. Accept CDN verdicts only over an authenticated origin path.</li>
+          <li>Route each signature label by <code>tag</code>: <code>web-bot-auth</code> to Web Bot Auth; <code>agent-browser-auth</code> or <code>agent-payer-auth</code> to Visa TAP (8-minute window, nonce required); a <code>UCP-Agent</code> header to UCP. Anything else is logged as unrecognised.</li>
+          <li>Parse <code>Signature-Agent</code> as a dictionary or a legacy string. Require <code>@authority</code> or <code>@target-uri</code>, <code>expires − created</code> of 24 h or less, and ±60 s of clock skew.</li>
+          <li>Fetch <code>/.well-known/http-message-signatures-directory</code> (no redirects, size and time limits, no private IPs). Cache it for 5 min–24 h with ETag, and serve stale keys on error.</li>
+          <li>Look keys up by the pair (URL, thumbprint we compute ourselves). Never trust the directory's <code>kid</code>: Google's are short strings, not thumbprints.</li>
+          <li>Rebuild the signature base with the Host the client used and verify. SeatGeek measured 600–900 µs per request.</li>
+          <li>If a nonce is present, record it until <code>expires</code>. The draft does not require nonces, so missing replay protection lowers assurance for writes.</li>
+          <li>Emit <code>PC-Passport: &lt;JWS&gt;</code> to the origin. An <code>invalid</code> signature from a known key counts as spoofing, which is worse than no signature. A failed directory fetch is not spoofing.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="two" style="margin-top:24px">
+      <div class="stack">
+        <h3>Who signs today (checked 6 Oct 2026)</h3>
+        <div class="tbl" style="margin-top:0">
+          <table>
+            <thead><tr><th>Agent</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>ChatGPT agent / ChatGPT Work cloud browser</td><td><span class="chip h">signs</span> legacy string <code>https://chatgpt.com</code></td></tr>
+              <tr><td>Google-Agent</td><td><span class="chip w">partial</span> draft shape; Google says “not yet signing every request”</td></tr>
+              <tr><td>Browserbase, Anchor, Goose, Cloudflare Browser Rendering</td><td><span class="chip h">signs</span></td></tr>
+              <tr><td>Amazon Bedrock AgentCore Browser</td><td><span class="chip w">opt-in</span></td></tr>
+              <tr><td>Manus, AGI Inc</td><td><span class="chip w">listed by Fingerprint</span></td></tr>
+              <tr><td>Perplexity (Perplexity-User, Comet)</td><td><span class="chip g">IP list only</span>, no directory found</td></tr>
+              <tr><td>Anthropic / Claude in Chrome</td><td><span class="chip g">does not sign</span></td></tr>
+              <tr><td>Comet, Gemini auto browse, Edge Copilot, ChatGPT extension</td><td><span class="chip g">run as the user</span>: behaviour only</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted">Web Bot Auth names the platform, not the platform's customer: ChatGPT and Browserbase carry many users. Tying an agent to a specific person needs a visa, a hosted per-tenant directory, or a token that names the principal.</p>
+      </div>
+      <div class="stack">
+        <h3>Reuse the customer's CDN where it already verifies</h3>
+        <div class="tbl" style="margin-top:0">
+          <table>
+            <tbody>
+              <tr><td><b>Cloudflare</b></td><td><code>cf.bot_management.signed_agent</code>, <code>verified_bot</code>, detection IDs. Since 1 Jul 2026 signed agents are labelled <em>Direct</em> (one operator) or <em>Intermediary</em> (many end users). Enterprise Bot Management only.</td></tr>
+              <tr><td><b>AWS WAF</b></td><td>Labels <code>…:web_bot_auth:verified</code>, <code>invalid</code>, <code>expired</code>, <code>unknown_bot</code>; forward as <code>x-amzn-waf-*</code> headers</td></tr>
+              <tr><td><b>Akamai</b></td><td>“Forward bot results to origin” adds <code>akamai-bot</code></td></tr>
+              <tr><td><b>Fingerprint</b></td><td><code>bot_info.identity</code>: signed, verified, unknown or spoofed</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 style="margin-top:16px">Other credentials to accept later</h3>
+        <p class="small">Visa TAP's consumer object (a Visa-signed ID token), Mastercard Agent Pay and Verifiable Intent (chained SD-JWTs), AP2 v0.2 checkout and payment mandates (now at the FIDO Alliance), Skyfire KYAPay JWTs, Vouched MCP-I proofs and World AgentKit. All of them reach the <b>pay</b> scope. Fold every scheme into one ladder: nothing presented → self-claimed → IP-verified → valid signature from an unknown operator → recognised operator → plus a bound person → plus a mandate for this exact transaction.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7. VISA ============ -->
+<section id="visa">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">7 · The differentiator</p>
+      <h2>Issuing a visa, from the first click to the entry log</h2>
+      <p class="prose muted">An agent's first sensitive action triggers a one-time consent prompt shown to the person. The prompt describes the request in product terms, the person approves it with a passkey, and later actions go through without asking until the visa expires or is revoked.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1080 560" role="img" aria-label="Sequence diagram across five lanes: person, agent, page with our SDK, the app backend, and Passport Control. Steps one to ten show an agent being detected, a decide call returning visa required, a consent prompt approved with a passkey, the visa being issued, the retried export being admitted and logged, and a later payroll change being refused because it is outside the visa.">
+        <defs>
+          <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
+          <marker id="ah3v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-headv"/></marker>
+        </defs>
+        <!-- lanes at x = 110, 320, 530, 740, 950 -->
+        <g>
+          <rect x="40" y="14" width="140" height="40" rx="8" class="d-hum"/><text x="110" y="39" text-anchor="middle" class="d-t">Person</text>
+          <rect x="250" y="14" width="140" height="40" rx="8" class="d-box"/><text x="320" y="39" text-anchor="middle" class="d-t">Agent</text>
+          <rect x="460" y="14" width="140" height="40" rx="8" class="d-box"/><text x="530" y="39" text-anchor="middle" class="d-t">Page + our SDK</text>
+          <rect x="670" y="14" width="140" height="40" rx="8" class="d-box"/><text x="740" y="39" text-anchor="middle" class="d-t">App backend</text>
+          <rect x="880" y="14" width="160" height="40" rx="8" class="d-new"/><text x="960" y="39" text-anchor="middle" class="d-t">Passport Control</text>
+          <line x1="110" y1="54" x2="110" y2="545" class="d-line"/>
+          <line x1="320" y1="54" x2="320" y2="545" class="d-line"/>
+          <line x1="530" y1="54" x2="530" y2="545" class="d-line"/>
+          <line x1="740" y1="54" x2="740" y2="545" class="d-line"/>
+          <line x1="960" y1="54" x2="960" y2="545" class="d-line"/>
+        </g>
+        <!-- 1 -->
+        <line x1="110" y1="84" x2="318" y2="84" class="d-arr" marker-end="url(#ah3)"/><text x="120" y="78" class="d-s">1 “export last quarter's invoices”</text>
+        <!-- 2 -->
+        <line x1="320" y1="122" x2="528" y2="122" class="d-arr" marker-end="url(#ah3)"/><text x="330" y="116" class="d-s">2 clicks Export CSV</text>
+        <!-- 3 -->
+        <line x1="530" y1="160" x2="958" y2="160" class="d-arrv" marker-end="url(#ah3v)"/><text x="540" y="154" class="d-s">3 behaviour stream → passport: Recognised · Claude in Chrome · 0.94</text>
+        <!-- 4 -->
+        <line x1="530" y1="198" x2="738" y2="198" class="d-arr" marker-end="url(#ah3)"/><text x="540" y="192" class="d-s">4 POST /export + token</text>
+        <line x1="740" y1="226" x2="958" y2="226" class="d-arr" marker-end="url(#ah3)"/><text x="750" y="220" class="d-s">decide(export_csv)</text>
+        <!-- 5 -->
+        <line x1="958" y1="262" x2="742" y2="262" class="d-arrv" marker-end="url(#ah3v)"/><text x="768" y="256" class="d-s">5 visa_required + prompt</text>
+        <!-- 6 -->
+        <line x1="528" y1="300" x2="112" y2="300" class="d-arrv" marker-end="url(#ah3v)"/><text x="150" y="294" class="d-s">6 in-page prompt: view + export for 30 days?</text>
+        <!-- 7 -->
+        <line x1="110" y1="338" x2="528" y2="338" class="d-arr" marker-end="url(#ah3)"/><text x="120" y="332" class="d-s">7 approves with passkey (user verification)</text>
+        <!-- 8 -->
+        <line x1="530" y1="376" x2="958" y2="376" class="d-arrv" marker-end="url(#ah3v)"/><text x="540" y="370" class="d-s">8 issue visa V-7F3A · user + driver + device · 30 d</text>
+        <!-- 9 -->
+        <line x1="958" y1="414" x2="742" y2="414" class="d-arr" marker-end="url(#ah3)"/><text x="768" y="408" class="d-s">9 retry → admit · log #4412</text>
+        <line x1="740" y1="440" x2="322" y2="440" class="d-arr" marker-end="url(#ah3)"/><text x="350" y="434" class="d-s">CSV downloads</text>
+        <!-- 10 -->
+        <line x1="320" y1="486" x2="958" y2="486" class="d-dash" marker-end="url(#ah3)"/><text x="330" y="480" class="d-s">10 next day: change payroll → decide(change_payroll)</text>
+        <line x1="958" y1="522" x2="322" y2="522" class="d-arrv" marker-end="url(#ah3v)"/><text x="560" y="516" class="d-s">refuse · outside visa · agent told why (403 + reason)</text>
+        <rect x="904" y="352" width="112" height="16" rx="3" class="d-new"/><text x="960" y="364" text-anchor="middle" class="d-s">visa store</text>
+      </svg>
+      </div>
+      <figcaption>The agent never holds a credential here. For an unsigned in-browser agent, the visa is a server-side record keyed to person, detected driver and device. The agent is admitted because Passport Control recognises it in a session where that visa is active. Section 8 covers how strongly a visa binds to an agent.</figcaption>
+    </figure>
+
+    <div class="two" style="margin-top:24px;align-items:start">
+      <div class="stack">
+        <h3>What the person sees (step 6)</h3>
+        <div class="prompt" aria-label="Mock consent prompt">
+          <div class="who"><span class="av">AI</span><div><b>Claude in Chrome is acting on your account</b><div class="small muted">Recognised by behaviour · first seen today 10:42</div></div></div>
+          <div class="small">It is asking to:</div>
+          <ul><li>View reports and invoices</li><li>Export CSV files</li></ul>
+          <div class="small muted">For 30 days. It cannot edit, delete, invite people, pay or change settings.</div>
+          <div class="acts"><span class="p">Allow with passkey</span><span>Only this time</span><span>Don't allow</span></div>
+          <div class="small muted">Revoke anytime in Settings → Agents.</div>
+        </div>
+        <p class="small muted">Ship the prompt as a drop-in component (<code>&lt;pc-visa-prompt&gt;</code>, plus a React wrapper) the way Stripe ships Elements. A workspace admin can pre-approve agents so members never see the prompt; that is the main defence against consent fatigue.</p>
+      </div>
+      <div class="stack">
+        <h3>What gets issued (step 8)</h3>
+        <div class="visa-doc">
+          <div class="vh"><b>VISA</b><span class="mono small">app.ledgerline.com</span></div>
+          <div class="vstamp">GRANTED<br>06 OCT 2026<br>PASSKEY</div>
+          <dl>
+            <dt>No.</dt><dd class="mono">V-7F3A-21</dd>
+            <dt>Agent</dt><dd>Claude in Chrome · recognised</dd>
+            <dt>For</dt><dd>Morgan Lee · Northwind workspace</dd>
+            <dt>May</dt><dd><span class="chip h">view</span> <span class="chip h">export</span></dd>
+            <dt>May not</dt><dd><span class="chip g">edit</span> <span class="chip g">delete</span> <span class="chip g">invite</span> <span class="chip g">pay</span> <span class="chip g">settings</span></dd>
+            <dt>Valid</dt><dd>06 Oct → 05 Nov 2026</dd>
+            <dt>Bound to</dt><dd>driver profile + device d_41c9; re-checked every session</dd>
+            <dt>Limits</dt><dd>200 exports/day; passkey again above 10,000 rows</dd>
+          </dl>
+          <div class="vmrz">V&lt;LDG&lt;CLAUDE&lt;IN&lt;CHROME&lt;&lt;RECOGNISED&lt;&lt;&lt;&lt;
+V7F3A21&lt;USR8A41&lt;&lt;VIEW&lt;EXPORT&lt;&lt;261105&lt;D41C9</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tbl" style="margin-top:24px">
+      <table>
+        <thead><tr><th>Scope (product language)</th><th>Typical actions</th><th>Default risk</th><th>Who can grant to an agent</th></tr></thead>
+        <tbody>
+          <tr><td><b>view</b></td><td>open records, reports, search</td><td><span class="chip h">low</span></td><td>the person, inline</td></tr>
+          <tr><td><b>export</b></td><td>CSV/PDF download, bulk copy</td><td><span class="chip w">medium</span></td><td>the person, inline; admin can cap volume</td></tr>
+          <tr><td><b>create · edit</b></td><td>new records, field changes, comments</td><td><span class="chip w">medium</span></td><td>the person, inline</td></tr>
+          <tr><td><b>invite · share</b></td><td>add users, share links, change access</td><td><span class="chip w">medium</span></td><td>the person; admin may require approval</td></tr>
+          <tr><td><b>send</b></td><td>email or message customers on the person's behalf</td><td><span class="chip w">medium</span></td><td>the person, per batch; internal recipients only by default</td></tr>
+          <tr><td><b>pay · payroll</b></td><td>payments, refunds, payroll, payouts</td><td><span class="chip b">high</span></td><td>admin opt-in; passkey on every action; verified tier only</td></tr>
+          <tr><td><b>settings · admin</b></td><td>SSO, roles, API keys, billing plan</td><td><span class="chip b">high</span></td><td>admin only; verified tier only</td></tr>
+          <tr><td><b>delete</b></td><td>delete records in bulk, delete workspace</td><td><span class="chip b">critical</span></td><td>never by default; people only</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8. BINDING ============ -->
+<section id="binding">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">8 · The hard problem</p>
+      <h2>Making a visa stick to an agent that will not say who it is</h2>
+      <p class="prose muted">An in-browser agent shares the person's cookies, IP address and device, so nothing cryptographic separates them. We bind visas at four strengths. Higher rungs give more assurance but need more cooperation from the agent provider, and the strength of the binding sets which scopes a visa may carry.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1040 330" role="img" aria-label="Staircase of four binding levels. B0 behavioural match needs no provider cooperation and gives the least assurance. B1 human co-sign with a passkey. B2 agent handshake with a provider-signed attestation. B3 signed requests with a visa token bound to the agent key gives the most assurance and needs full provider cooperation.">
+        <defs><marker id="ah4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <line x1="40" y1="292" x2="1010" y2="292" class="d-arr" marker-end="url(#ah4)"/>
+        <text x="1010" y="316" text-anchor="end" class="d-s">cooperation needed from the agent provider →</text>
+        <line x1="40" y1="292" x2="40" y2="20" class="d-arr" marker-end="url(#ah4)"/>
+        <text x="52" y="30" class="d-s">assurance ↑</text>
+        <rect x="60" y="220" width="225" height="72" rx="8" class="d-box"/>
+        <text x="74" y="243" class="d-t">B0 · Behavioural match</text><text x="74" y="262" class="d-s">person + driver profile + device</text><text x="74" y="278" class="d-s">→ view, export (capped)</text>
+        <rect x="300" y="160" width="225" height="132" rx="8" class="d-hum"/>
+        <text x="314" y="183" class="d-t">B1 · Person co-signs</text><text x="314" y="202" class="d-s">passkey with user verification</text><text x="314" y="218" class="d-s">on the action itself</text><text x="314" y="234" class="d-s">→ adds edit, invite, one-off pay</text>
+        <rect x="540" y="100" width="225" height="192" rx="8" class="d-new"/>
+        <text x="554" y="123" class="d-t">B2 · Agent handshake</text><text x="554" y="142" class="d-s">agent calls a page tool with a</text><text x="554" y="158" class="d-s">provider-signed attestation;</text><text x="554" y="174" class="d-s">visa bound to that key</text><text x="554" y="190" class="d-s">→ recurring writes, higher caps</text>
+        <rect x="780" y="40" width="225" height="252" rx="8" class="d-new"/>
+        <text x="794" y="63" class="d-t">B3 · Signed requests</text><text x="794" y="82" class="d-s">Web Bot Auth + visa token</text><text x="794" y="98" class="d-s">bound to the agent key</text><text x="794" y="114" class="d-s">(proof-of-possession)</text><text x="794" y="130" class="d-s">→ pay, settings (with admin</text><text x="794" y="146" class="d-s">opt-in)</text>
+        <text x="172" y="212" text-anchor="middle" class="d-labv">AVAILABLE DAY 1</text>
+        <text x="412" y="152" text-anchor="middle" class="d-labv">AVAILABLE DAY 1</text>
+        <text x="652" y="92" text-anchor="middle" class="d-lab">NEEDS PROVIDERS</text>
+        <text x="892" y="32" text-anchor="middle" class="d-lab">CLOUD AGENTS TODAY</text>
+      </svg>
+      </div>
+      <figcaption>B0 and B1 need nothing from Anthropic, OpenAI or Perplexity, so they ship first. Where Chrome's Device Bound Session Credentials are available (GA on Windows since Chrome 146), B0 also stops a stolen cookie from carrying the visa to another machine. B2 is our proposed handshake, and agents get the fast lane in return for it. As of October 2026, no agent provider has announced support for site-issued permissions, so B2 is a business-development bet as much as an engineering one.</figcaption>
+    </figure>
+    <div class="two" style="margin-top:20px">
+      <div class="stack">
+        <h3>The B2 handshake, concretely</h3>
+<pre class="code"><span class="c">// 1. our tag, on first agent detection</span>
+window.postMessage({ type: "agent-passport/challenge",
+  nonce: "q7Z…", origin: location.origin }, "*")
+
+<span class="c">// 2. the agent extension's content script answers,</span>
+<span class="c">//    signed with a key in its provider's Web Bot Auth directory</span>
+{ type: "agent-passport/present",
+  agent: "anthropic/claude-in-chrome", agent_version: "1.14",
+  provider_user: "pseud_3f…", origin: "https://app.ledgerline.com",
+  nonce: "q7Z…", task_id: "t_81", intent_hash: "sha256:…",
+  iat: 1791247440, exp: 1791247500, sig: "…" }
+
+<span class="c">// 3. we verify, upgrade the passport to verified, and set a</span>
+<span class="c">//    60-second first-party cookie so CDP-driven navigations carry it</span></pre>
+        <p class="small muted">A WebMCP tool (<code>passport.present</code>) can carry the same payload. Content-script <code>postMessage</code> scales better than <code>externally_connectable</code>, which only works for origins named in the extension's manifest.</p>
+      </div>
+      <div class="stack">
+        <h3>Tiers mapped to binding</h3>
+        <div class="tbl" style="margin-top:0">
+          <table>
+            <thead><tr><th>Tier</th><th>Means</th><th>Highest scope</th></tr></thead>
+            <tbody>
+              <tr><td><b>Human</b></td><td>No agent detected</td><td>whatever the role allows</td></tr>
+              <tr><td><b>Unknown automation</b></td><td>Automated, product not named</td><td>view, slowed</td></tr>
+              <tr><td><b>Recognised</b></td><td>Named by behaviour (B0)</td><td>view, export; writes with co-sign (B1)</td></tr>
+              <tr><td><b>Verified · handshake</b></td><td>Provider-signed presence (B2)</td><td>create, edit, invite</td></tr>
+              <tr><td><b>Verified · signed</b></td><td>Web Bot Auth plus a key-bound visa (B3)</td><td>pay, settings, with admin opt-in and per-action passkey</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted">A visa never grants more than the person's own role. For unsigned agents it works as a restriction plus convenience: fewer prompts and no challenges, never extra privilege.</p>
+      </div>
+    </div>
+    <div class="cards">
+      <div class="card"><h3>Why a passkey is the anchor</h3><p class="small">WebAuthn with user verification needs a fingerprint, face or device PIN on the person's own authenticator. An agent driving the page can click the button but cannot pass that check on its own, so a passkey co-sign proves a person intended this specific action.</p></div>
+      <div class="card"><h3>Visas die on handoff anomalies</h3><p class="small">If the handoff detector sees a different driver from the one the visa names, or the device changes, the visa is suspended for that session and the next sensitive action falls back to “ask the person”.</p></div>
+      <div class="card"><h3>Prompt injection limits</h3><p class="small">A visa limits what a hijacked agent can do, but it cannot tell an instruction from the person apart from one a malicious page planted. Provider defences help without closing the gap: Anthropic reports its mitigations cut Claude in Chrome's attack success rate from 23.6% to 11.2%. Keep consequential scopes behind a per-action passkey, cap volumes, and when an agent strays off task (say, opening SSO settings during a “read reports” job) downgrade the visa to read-only.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 9. BORDER ============ -->
+<section id="border">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">9 · Try it</p>
+      <h2>Border decisions: one call, one stamp</h2>
+      <p class="prose muted">Choose who is acting, the state of their visa and the action. The simulator runs the default policy pack, shows the rule that decided, and prints the entry log line. Observe mode computes the same decision without enforcing it, which is how every install starts.</p>
+    </div>
+    <div class="sim">
+      <div class="ctl">
+        <div><label class="g" id="lg-who">Who is acting</label><div class="seg" data-k="who" role="group" aria-labelledby="lg-who">
+          <button type="button" data-v="human">Person</button><button type="button" data-v="verified">Verified agent</button><button type="button" data-v="recognised">Recognised agent</button><button type="button" data-v="unknown">Unknown automation</button></div></div>
+        <div><label class="g" id="lg-visa">Visa</label><div class="seg" data-k="visa" role="group" aria-labelledby="lg-visa">
+          <button type="button" data-v="none">None</button><button type="button" data-v="active">Active: view + export</button><button type="button" data-v="expired">Expired</button><button type="button" data-v="revoked">Revoked</button></div></div>
+        <div><label class="g" id="lg-act">Action</label><div class="seg" data-k="action" role="group" aria-labelledby="lg-act">
+          <button type="button" data-v="view">View report</button><button type="button" data-v="export">Export CSV</button><button type="button" data-v="invite">Invite teammate</button><button type="button" data-v="payroll">Change payroll</button><button type="button" data-v="delete">Delete workspace</button></div></div>
+        <div><label class="g" id="lg-mode">Mode</label><div class="seg" data-k="mode" role="group" aria-labelledby="lg-mode">
+          <button type="button" data-v="observe">Observe</button><button type="button" data-v="enforce">Enforce</button></div></div>
+      </div>
+      <div class="out" id="sim-out" aria-live="polite"></div>
+    </div>
+
+    <div class="outcomes">
+      <div><b>Admit</b><span>Run the action and log it.</span></div>
+      <div><b>Slow</b><span>Admit at a lower rate; unknown automation starts here.</span></div>
+      <div><b>Request visa</b><span>Show the consent prompt to the person and tell the agent to wait.</span></div>
+      <div><b>Ask the person</b><span>Hold the action until a passkey co-sign arrives.</span></div>
+      <div><b>Reroute</b><span>Point the agent to a cheaper WebMCP tool or API (the fast lane).</span></div>
+      <div><b>Bill</b><span>Admit and send a meter event to billing.</span></div>
+      <div><b>Refuse</b><span>Block, with a reason the agent can relay to the person.</span></div>
+    </div>
+    <p class="small muted" style="margin-top:12px">Cedar can only permit or forbid. Each policy carries an <code>@outcome</code> annotation, and <code>/decide</code> returns the strictest outcome among the policies that determined the result: refuse, then ask, then request visa, then slow, then reroute, then bill, then admit. Cedar evaluates in microseconds, so latency comes from loading the session and visa. Keep those in memory with a 30–60 s TTL plus push invalidation. Targets: about 5 ms added at p99 in-process and 25–30 ms for a same-region API call. AWS AgentCore Policy already uses Cedar with a <code>LOG_ONLY</code> mode, a precedent for our observe mode.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>When our API is unreachable</th><th>Posture</th></tr></thead>
+        <tbody>
+          <tr><td>view, read</td><td><span class="chip h">fail open</span> logged as degraded</td></tr>
+          <tr><td>export, create, edit, invite</td><td><span class="chip w">fail open within cached TTL</span> then ask the person</td></tr>
+          <tr><td>delete, pay, settings, admin</td><td><span class="chip b">fail closed</span> fall back to passkey co-sign or person-only</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:10px">Kill switches at three levels: one visa, one passport (an agent instance), or one agent product across a whole tenant, for example “turn off Comet for everyone at Northwind”.</p>
+  </div>
+</section>
+
+<!-- ============ 10. BENCH ============ -->
+<section id="bench">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">10 · Phase 0, and a marketing asset</p>
+      <h2>The benchmark lab</h2>
+      <p class="prose muted">The biggest risk in the plan is that behavioural detection is not accurate enough to hang visas on, and no vendor publishes a false-positive rate. So the lab comes first: it sets the go/no-go decision, produces training labels, blocks bad model releases, and gives us a public scorecard nobody else has.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1080 270" role="img" aria-label="Benchmark lab pipeline: agent runners and a human cohort both perform tasks in a harness app; a recorder stores ground truth for each action; a versioned dataset feeds training and evaluation; results go to a scorecard, a release gate and a public leaderboard.">
+        <defs><marker id="ah5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <rect x="20" y="30" width="180" height="84" rx="8" class="d-new"/><text x="110" y="56" text-anchor="middle" class="d-t">Agent runners</text><text x="110" y="75" text-anchor="middle" class="d-s">10+ agents × versions</text><text x="110" y="90" text-anchor="middle" class="d-s">× settings, nightly</text>
+        <rect x="20" y="146" width="180" height="84" rx="8" class="d-hum"/><text x="110" y="172" text-anchor="middle" class="d-t">Human cohort</text><text x="110" y="191" text-anchor="middle" class="d-s">mouse · trackpad · touch ·</text><text x="110" y="206" text-anchor="middle" class="d-s">screen reader · voice</text>
+        <rect x="250" y="88" width="170" height="84" rx="8" class="d-box"/><text x="335" y="114" text-anchor="middle" class="d-t">Harness app</text><text x="335" y="133" text-anchor="middle" class="d-s">SaaS clone, 20 tasks</text><text x="335" y="148" text-anchor="middle" class="d-s">+ real customer pages</text>
+        <rect x="470" y="88" width="160" height="84" rx="8" class="d-box"/><text x="550" y="114" text-anchor="middle" class="d-t">Recorder</text><text x="550" y="133" text-anchor="middle" class="d-s">who drove each</text><text x="550" y="148" text-anchor="middle" class="d-s">action (ground truth)</text>
+        <rect x="680" y="88" width="160" height="84" rx="8" class="d-box"/><text x="760" y="114" text-anchor="middle" class="d-t">Dataset + eval</text><text x="760" y="133" text-anchor="middle" class="d-s">versioned splits,</text><text x="760" y="148" text-anchor="middle" class="d-s">held-out agents</text>
+        <rect x="890" y="20" width="170" height="64" rx="8" class="d-new"/><text x="975" y="46" text-anchor="middle" class="d-t">Public scorecard</text><text x="975" y="64" text-anchor="middle" class="d-s">quarterly</text>
+        <rect x="890" y="98" width="170" height="64" rx="8" class="d-box"/><text x="975" y="124" text-anchor="middle" class="d-t">Release gate</text><text x="975" y="142" text-anchor="middle" class="d-s">blocks FPR regressions</text>
+        <rect x="890" y="176" width="170" height="64" rx="8" class="d-box"/><text x="975" y="202" text-anchor="middle" class="d-t">Model training</text><text x="975" y="220" text-anchor="middle" class="d-s">weights + driver profiles</text>
+        <path d="M200 72 C225 72 225 115 248 115" class="d-arr" marker-end="url(#ah5)"/>
+        <path d="M200 188 C225 188 225 145 248 145" class="d-arr" marker-end="url(#ah5)"/>
+        <line x1="420" y1="130" x2="468" y2="130" class="d-arr" marker-end="url(#ah5)"/>
+        <line x1="630" y1="130" x2="678" y2="130" class="d-arr" marker-end="url(#ah5)"/>
+        <path d="M840 115 C865 115 865 52 888 52" class="d-arr" marker-end="url(#ah5)"/>
+        <line x1="840" y1="130" x2="888" y2="130" class="d-arr" marker-end="url(#ah5)"/>
+        <path d="M840 145 C865 145 865 208 888 208" class="d-arr" marker-end="url(#ah5)"/>
+        <text x="20" y="258" class="d-s">Both runners and humans use the same sensor build that ships to customers, so lab results transfer to production.</text>
+      </svg>
+      </div>
+      <figcaption>Real customer traffic adds labels later: visas a person approves, “that was me” appeals and passkey co-signs all count as ground truth. That data is a moat that grows with every install.</figcaption>
+    </figure>
+
+    <div class="two" style="margin-top:24px">
+      <div class="stack">
+        <h3>Agent matrix (refresh nightly)</h3>
+        <div class="chips">
+          <span class="chip">Claude in Chrome</span><span class="chip">Perplexity Comet</span><span class="chip">ChatGPT desktop browser + Chrome extension</span><span class="chip">OpenAI Codex browser</span><span class="chip">Gemini in Chrome</span><span class="chip">Edge Copilot Mode</span><span class="chip">ChatGPT agent (signed)</span><span class="chip">Google-Agent (signed, partial)</span><span class="chip">Browserbase / Stagehand</span><span class="chip">browser-use</span><span class="chip">Claude / OpenAI computer use</span><span class="chip">Playwright · Puppeteer · Selenium</span><span class="chip w">+ humaniser variants</span>
+        </div>
+        <p class="small muted">Consumer agents need a prompt typed into their own UI. Script that with OS-level automation on dedicated test machines, and record each agent's version string with every run. The matrix changes fast: OpenAI reportedly shut Atlas down in August 2026 and moved agent browsing into the ChatGPT desktop app, a Chrome extension and a cloud browser.</p>
+      </div>
+      <div class="stack">
+        <h3>What we measure and publish</h3>
+        <ul class="tight small">
+          <li><b>Recall at fixed false-positive rates:</b> per agent, at 1%, 0.1% and 0.01% FPR on human sessions, at session and action level. At 0.1%, a site with a million sessions flags 1,000 real people</li>
+          <li><b>Time to verdict:</b> median actions before the score clears ±3, and the “unknown” rate</li>
+          <li><b>Handoff error:</b> how far the detected person-to-agent switch is from the true one</li>
+          <li><b>Driver accuracy:</b> confusion matrix over named agents, including “agent, driver unknown”</li>
+          <li><b>Calibration:</b> expected calibration error and Brier score</li>
+          <li><b>Decay:</b> train on version N, test on N+k, monthly</li>
+          <li><b>Hard humans:</b> FPR reported separately for screen readers, voice control, switch access, IME and dictation, password-manager autofill, Citrix/RDP, Vimium and developers with DevTools open</li>
+          <li><b>Cost:</b> SDK size and CPU per minute (Vouched publishes 41 KB gzipped, under 5 ms)</li>
+        </ul>
+        <div class="callout small"><b>Proposed go/no-go for Phase 1:</b> at least 90% recall within 5 actions for the top five in-browser agents, at 0.5% FPR or less on general human sessions and 1% or less on assistive-tech users. Miss it, and the product leads with signed agents and passkey co-sign (B1) until it is met.</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:28px">What has been published so far</h3>
+    <p class="small muted prose" style="margin-top:6px">No vendor publishes accuracy or false-positive rates. Five academic papers from 2026 do. Their numbers are near-perfect in the lab, but every human cohort is small or did different tasks from the agents, which is exactly the gap a public benchmark fills.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Study</th><th>Setup</th><th>Result</th><th>Caveat</th></tr></thead>
+        <tbody>
+          <tr><td><b>FP-Agent</b> (UC Davis, May 2026)</td><td>7 agents incl. Claude for Chrome, Comet, Atlas, ChatGPT agent; 56 people; XGBoost</td><td>F1 1.000 combining behaviour and fingerprint; behaviour alone 0.9994</td><td>Behaviour alone drops to 0.63 on held-out tasks. Cloudflare blocked 1 of 7 agents</td></tr>
+          <tr><td><b>What Does It Take to Detect an AI Agent?</b> (TUM, Jul 2026)</td><td>~14k human CAPTCHA sessions vs Claude via Playwright, 5 evasion levels</td><td>100% agent recall, 0 errors in 22,990 predictions</td><td>One agent, humans did a different task; binary bot detectors missed 30–39% of agents</td></tr>
+          <tr><td><b>Known By Their Actions</b> (May 2026)</td><td>14 LLMs on one harness</td><td>Up to 96% F1 naming the model from timing alone</td><td>Unseen agents: AUROC 0.60–0.84. Harness and data are open</td></tr>
+          <tr><td><b>Whose Agent Are You?</b> (Jun 2026)</td><td>6 agents, 30 people</td><td>97% attribution; combined F1 0.971</td><td>Small human cohort</td></tr>
+          <tr><td><b>Nobody Knows You're an LLM Bot</b> (Jun 2026)</td><td>6 agents, network + browser layers</td><td>0.993 accuracy with all layers; “stealth” modes made agents <em>easier</em> to spot</td><td>Mostly cloud agents; local agents share the user's TLS and IP</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:10px">To be credible: pre-register the protocol; publish the harness, data and labels; allow third-party reruns; and climb a humaniser ladder up to a hardware HID emulator (Bézier paths, simulated key rollover, fake wheel inertia, OS-level injection).</p>
+  </div>
+</section>
+
+<!-- ============ 11. DATA & APIs ============ -->
+<section id="data">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">11 · Under the hood</p>
+      <h2>Data model and API surface</h2>
+    </div>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1080 330" role="img" aria-label="Entity diagram: a Site has Accounts and Users; a Session belongs to a User and a device and has one Passport at a time; a Passport references an Agent from the directory; a Visa links a User, an Agent and a Site with scopes and a binding level; a Decision references a Session, a Visa and a Policy; each Decision writes one Entry in a hash chain.">
+        <defs><marker id="ah6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker></defs>
+        <g>
+          <rect x="20" y="20" width="200" height="110" rx="8" class="d-box"/><text x="34" y="44" class="d-t">Site · Account · User</text><text x="34" y="66" class="d-s">site_id, plan, regions</text><text x="34" y="82" class="d-s">account_id (tenant)</text><text x="34" y="98" class="d-s">user_id, passkeys[]</text>
+          <rect x="300" y="20" width="200" height="110" rx="8" class="d-box"/><text x="314" y="44" class="d-t">Session</text><text x="314" y="66" class="d-s">session_id, user_id</text><text x="314" y="82" class="d-s">device_id, started_at</text><text x="314" y="98" class="d-s">handoffs[] (t, from, to)</text>
+          <rect x="580" y="20" width="200" height="110" rx="8" class="d-new"/><text x="594" y="44" class="d-t">Passport</text><text x="594" y="66" class="d-s">tier, driver, confidence</text><text x="594" y="82" class="d-s">reasons[], source</text><text x="594" y="98" class="d-s">sig | behaviour | handshake</text>
+          <rect x="860" y="20" width="200" height="110" rx="8" class="d-new"/><text x="874" y="44" class="d-t">Agent (directory)</text><text x="874" y="66" class="d-s">provider, product</text><text x="874" y="82" class="d-s">keys[], versions[]</text><text x="874" y="98" class="d-s">reputation, status</text>
+          <rect x="20" y="200" width="200" height="110" rx="8" class="d-new"/><text x="34" y="224" class="d-t">Visa</text><text x="34" y="246" class="d-s">user, agent, scopes[]</text><text x="34" y="262" class="d-s">limits, binding B0–B3</text><text x="34" y="278" class="d-s">expires_at, status</text>
+          <rect x="300" y="200" width="200" height="110" rx="8" class="d-new"/><text x="314" y="224" class="d-t">Policy</text><text x="314" y="246" class="d-s">cedar text, version</text><text x="314" y="262" class="d-s">@outcome, mode</text><text x="314" y="278" class="d-s">action catalogue</text>
+          <rect x="580" y="200" width="200" height="110" rx="8" class="d-box"/><text x="594" y="224" class="d-t">Decision</text><text x="594" y="246" class="d-s">session, action, resource</text><text x="594" y="262" class="d-s">outcome, policy_ids</text><text x="594" y="278" class="d-s">visa_id, latency_ms</text>
+          <rect x="860" y="200" width="200" height="110" rx="8" class="d-new"/><text x="874" y="224" class="d-t">Entry (log)</text><text x="874" y="246" class="d-s">decision_id, ts</text><text x="874" y="262" class="d-s">prev_hash, hash</text><text x="874" y="278" class="d-s">daily Merkle root</text>
+        </g>
+        <line x1="220" y1="75" x2="298" y2="75" class="d-arr" marker-end="url(#ah6)"/><text x="232" y="68" class="d-s">has</text>
+        <line x1="500" y1="75" x2="578" y2="75" class="d-arr" marker-end="url(#ah6)"/><text x="512" y="68" class="d-s">current</text>
+        <line x1="780" y1="75" x2="858" y2="75" class="d-arr" marker-end="url(#ah6)"/><text x="792" y="68" class="d-s">names</text>
+        <line x1="120" y1="130" x2="120" y2="198" class="d-arr" marker-end="url(#ah6)"/><text x="128" y="170" class="d-s">grants</text>
+        <path d="M960 130 C960 165 180 160 180 198" class="d-dash" marker-end="url(#ah6)"/><text x="600" y="168" class="d-s">visa names an agent</text>
+        <line x1="500" y1="255" x2="578" y2="255" class="d-arr" marker-end="url(#ah6)"/><text x="512" y="248" class="d-s">decides</text>
+        <path d="M220 290 C400 330 560 330 640 312" class="d-arr" marker-end="url(#ah6)"/><text x="330" y="322" class="d-s">checked by</text>
+        <line x1="780" y1="255" x2="858" y2="255" class="d-arr" marker-end="url(#ah6)"/><text x="792" y="248" class="d-s">writes</text>
+        <path d="M400 130 C400 170 640 160 660 198" class="d-arr" marker-end="url(#ah6)"/>
+      </svg>
+      </div>
+    </figure>
+
+    <div class="two" style="margin-top:24px">
+      <div class="stack">
+        <h3>Decision API</h3>
+<pre class="code"><span class="k">POST</span> /v1/decide
+Authorization: Bearer pc_sk_…
+{ "session_token": "…", "action": "export_csv",
+  "resource": "report:q3", "context": { "rows": 4210 } }
+
+<span class="c">→ 200</span>
+{ "outcome": "request_visa",
+  "passport": { "tier": "recognised", "driver": "claude-in-chrome",
+                "confidence": 0.94, "reasons": ["cdp_pointer_jump",
+                "insert_text_no_keys", "model_latency_cadence"] },
+  "visa": null,
+  "prompt": { "scopes": ["view","export"], "ttl_days": 30 },
+  "agent_message": "Waiting for the account holder to allow exports.",
+  "policy_ids": ["visa-required"], "entry_id": "e_4412" }</pre>
+        <p class="small muted">Also serve the same decision at <code>POST /access/v1/evaluation</code> in OpenID AuthZEN 1.0 shape (final January 2026: subject, action, resource and context in; decision and context out), so existing policy-decision tooling and IdP gateways can call it without a custom client.</p>
+      </div>
+      <div class="stack">
+        <h3>Everything else</h3>
+        <div class="tbl" style="margin-top:0">
+          <table>
+            <tbody>
+              <tr><td><code>pc.init(pk)</code> · <code>identify()</code></td><td>Browser SDK, same shape as Switchfrog's to ease switching</td></tr>
+              <tr><td><code>pc.onPassport(cb)</code></td><td>UI hints such as showing an “agent is acting” banner</td></tr>
+              <tr><td><code>&lt;pc-visa-prompt&gt;</code></td><td>Consent prompt component</td></tr>
+              <tr><td><code>&lt;pc-agent-access&gt;</code></td><td>“Agents with access” settings panel for end users and admins</td></tr>
+              <tr><td><code>POST /v1/visas</code> · <code>DELETE /v1/visas/:id</code></td><td>Admin issue and revoke</td></tr>
+              <tr><td><code>GET /v1/entries</code></td><td>Entry log query and export as JSON or OCSF 1.9, which added <code>ai_agent</code> and <code>delegation</code> objects that map onto passport and visa</td></tr>
+              <tr><td>Webhooks</td><td><code>passport.changed</code>, <code>handoff.detected</code>, <code>visa.granted</code>, <code>visa.revoked</code>, <code>decision.refused</code></td></tr>
+              <tr><td>Shared Signals (SSF/CAEP)</td><td>Receive from the customer's IdP (a deprovisioned user kills their visas); send <code>session-revoked</code> to agent providers when a visa is revoked</td></tr>
+              <tr><td>Visa token (B3 only)</td><td>5–15 minute JWT with <code>cnf.jkt</code> (agent key), <code>act</code>, <code>authorization_details</code> and a status-list index; the server record stays the source of truth</td></tr>
+              <tr><td>Middleware</td><td>Express, Next.js, Django, Rails, Go, plus edge workers; local policy cache and a fail-open or fail-closed setting per action</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:32px">Stack choices</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Part</th><th>Choice</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Sensor SDK</td><td>TypeScript, no dependencies, &lt;25 KB gz; batched beacons; IndexedDB session</td><td>Matches the incumbent's install story; CSP-friendly</td></tr>
+          <tr><td>Ingest</td><td>Edge workers → Kafka/Redpanda → ClickHouse</td><td>High write volume, cheap columnar queries for insights</td></tr>
+          <tr><td>Scoring</td><td>LightGBM exported to ONNX in a Rust/Go scorer; small GRU/transformer for handoff and driver naming</td><td>Fast to iterate, explainable reasons, CPU inference</td></tr>
+          <tr><td>Policy</td><td>Cedar (Rust core, WASM at the edge)</td><td>Analysable, fast, readable by customers; annotations carry outcomes</td></tr>
+          <tr><td>Visas &amp; sessions</td><td>Postgres (source of truth) + Redis/edge KV cache; signed short-lived visa JWTs for B3</td><td>Simple; revocation reaches the edge in seconds</td></tr>
+          <tr><td>Entry log</td><td>Append-only Postgres partitions, per-site hash chain, daily Merkle root published</td><td>Tamper-evident audits without a blockchain</td></tr>
+          <tr><td>Console</td><td>Next.js; session replay as event plots, never screen video</td><td>Explains each verdict without storing content</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 12. ROADMAP ============ -->
+<section id="roadmap">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">12 · Sequence</p>
+      <h2>Roadmap with exit criteria</h2>
+      <p class="prose muted">About 40 weeks to the network layer with a founding team of five: an ML/detection engineer, a browser SDK engineer, a backend/infra engineer, an identity and standards engineer, and a product designer/PM. Each phase ends on a measurable gate, not a date.</p>
+    </div>
+    <figure>
+      <div class="scroll">
+      <svg viewBox="0 0 1080 300" role="img" aria-label="Gantt chart over 40 weeks. Phase 0 prove detection weeks 0 to 6. Phase 1 parity plus signed agents weeks 6 to 14. Phase 2 visas weeks 14 to 24. Phase 3 border control and fast lane weeks 24 to 36. Phase 4 network from week 32 onward.">
+        <g>
+          <line x1="220" y1="30" x2="220" y2="262" class="d-line"/><line x1="320" y1="30" x2="320" y2="262" class="d-line"/><line x1="420" y1="30" x2="420" y2="262" class="d-line"/><line x1="520" y1="30" x2="520" y2="262" class="d-line"/><line x1="620" y1="30" x2="620" y2="262" class="d-line"/><line x1="720" y1="30" x2="720" y2="262" class="d-line"/><line x1="820" y1="30" x2="820" y2="262" class="d-line"/><line x1="920" y1="30" x2="920" y2="262" class="d-line"/><line x1="1020" y1="30" x2="1020" y2="262" class="d-line"/>
+          <text x="220" y="22" text-anchor="middle" class="d-s">wk 0</text><text x="320" y="22" text-anchor="middle" class="d-s">5</text><text x="420" y="22" text-anchor="middle" class="d-s">10</text><text x="520" y="22" text-anchor="middle" class="d-s">15</text><text x="620" y="22" text-anchor="middle" class="d-s">20</text><text x="720" y="22" text-anchor="middle" class="d-s">25</text><text x="820" y="22" text-anchor="middle" class="d-s">30</text><text x="920" y="22" text-anchor="middle" class="d-s">35</text><text x="1020" y="22" text-anchor="middle" class="d-s">40</text>
+        </g>
+        <text x="20" y="62" class="d-t">P0 Prove detection</text><rect x="220" y="46" width="120" height="26" rx="5" class="d-new"/>
+        <text x="20" y="108" class="d-t">P1 Parity + signed</text><rect x="340" y="92" width="160" height="26" rx="5" class="d-box"/>
+        <text x="20" y="154" class="d-t">P2 Visas</text><rect x="500" y="138" width="200" height="26" rx="5" class="d-new"/>
+        <text x="20" y="200" class="d-t">P3 Border + fast lane</text><rect x="700" y="184" width="240" height="26" rx="5" class="d-new"/>
+        <text x="20" y="246" class="d-t">P4 Network</text><rect x="860" y="230" width="200" height="26" rx="5" class="d-new"/>
+        <text x="348" y="64" class="d-s">gate: lab accuracy</text>
+        <text x="508" y="110" class="d-s">gate: 5 design partners live</text>
+        <text x="708" y="156" class="d-s">gate: 3 paying, consent rate</text>
+        <text x="948" y="202" class="d-s">gate: ACV</text>
+        <text x="20" y="288" class="d-s">Violet bars build the differentiator. The grey bar is parity work that must exist before anyone buys the rest.</text>
+      </svg>
+      </div>
+    </figure>
+    <div class="cards">
+      <div class="card"><h3>P0 · Weeks 0–6 · Prove</h3><ul><li>Harness app, agent runners, human cohort of 200+</li><li>Sensor v0 and offline model</li><li>Signed-agent verifier prototype</li><li><b>Exit:</b> go/no-go thresholds in section 10</li></ul></div>
+      <div class="card"><h3>P1 · Weeks 6–14 · Parity</h3><ul><li>SDK GA, <code>/decide</code> in observe mode, dashboard</li><li>Web Bot Auth at the edge; Cloudflare and GTM installers; CMP bridges</li><li>Free “agent audit” report</li><li><b>Exit:</b> 5 design partners on observe mode</li></ul></div>
+      <div class="card"><h3>P2 · Weeks 14–24 · Visas</h3><ul><li>Visa service, prompt and settings components</li><li>Passkey co-sign (B1), admin allow-lists</li><li>Entry log v1 with export</li><li><b>Exit:</b> 3 paying customers; prompt approval rate above 60%</li></ul></div>
+      <div class="card"><h3>P3 · Weeks 24–36 · Control</h3><ul><li>Cedar policy packs and seven outcomes</li><li>Fast-lane tools that check visas; metering to Stripe</li><li>SIEM export, SOC 2 Type I</li><li><b>Exit:</b> first enterprise contract</li></ul></div>
+      <div class="card"><h3>P4 · Week 32+ · Network</h3><ul><li>Handshake spec (B2) with one agent provider</li><li>Agent directory, revocation feed, cross-site reputation</li><li>Quarterly public benchmark</li><li><b>Exit:</b> one provider ships the handshake</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13. MISSING ============ -->
+<section id="missing">
+  <div class="wrap">
+    <div class="head">
+      <p class="eyebrow">13 · Filling the gaps</p>
+      <h2>What the current plan is missing</h2>
+      <p class="prose muted">The research doc covers the market and the product idea. These are build and business items it does not cover yet. <span class="tag p0">P0</span> blocks a launch, <span class="tag p1">P1</span> blocks the first enterprise deal, <span class="tag p2">P2</span> can wait.</p>
+    </div>
+    <div class="cards">
+      <div class="card"><h3>Detection edge cases</h3><ul>
+        <li>Assistive tech (screen readers, voice control, switch access) looks automated; it needs its own FPR budget and an allow path <span class="tag p0">P0</span></li>
+        <li>Password managers, Grammarly and other extensions that type or paste <span class="tag p0">P0</span></li>
+        <li>Customers' own QA bots, RPA (UiPath) and synthetic monitoring need allow-listing <span class="tag p1">P1</span></li>
+        <li>Agents that block the sensor: missing telemetry on a protected action should count as evidence, not as a pass <span class="tag p0">P0</span></li>
+        <li>Mobile apps, webviews and Electron desktop apps sit outside a JS tag <span class="tag p2">P2</span></li>
+      </ul></div>
+      <div class="card"><h3>Other channels</h3><ul>
+        <li>Agents that skip the UI and use the customer's API or MCP server: the visa should cover OAuth/MCP clients too, or a blocked agent simply moves to the API <span class="tag p1">P1</span></li>
+        <li>Shared logins and service accounts: one account, many people and agents <span class="tag p1">P1</span></li>
+        <li>Multi-tab and background-tab sessions; iframes and embedded apps <span class="tag p1">P1</span></li>
+      </ul></div>
+      <div class="card"><h3>Integration friction</h3><ul>
+        <li>Mapping routes to actions is the hardest part of every install. Infer it from HTTP methods, export headers and OpenAPI <code>x-visa-scope</code> tags, learn it in observe mode, and have an admin confirm. Switchfrog's action discovery does this already <span class="tag p0">P0</span></li>
+        <li>Batch decisions for page UI (which buttons to show an agent) through AuthZEN <code>/evaluations</code> <span class="tag p1">P1</span></li>
+        <li>Agents' declared intent (a task hash from the handshake) as an off-task anomaly signal, never as authorisation <span class="tag p2">P2</span></li>
+      </ul></div>
+      <div class="card"><h3>User experience</h3><ul>
+        <li>A “that was me” appeal for false positives, which also feeds labels <span class="tag p0">P0</span></li>
+        <li>Agent-readable refusals (reason and next step) so agents can explain them, not retry in loops <span class="tag p0">P0</span></li>
+        <li>Consent fatigue: admin pre-approval, plan-level default visas, progressive scopes <span class="tag p1">P1</span></li>
+        <li>Copy and localisation for prompts written in the customer's voice <span class="tag p2">P2</span></li>
+      </ul></div>
+      <div class="card"><h3>Security of our own</h3><ul>
+        <li>Our SDK is a supply-chain risk on customers' pages: versioned URLs, SRI hashes, a CSP guide and a public changelog <span class="tag p0">P0</span></li>
+        <li>Token replay: bind session tokens to the session and the action, with short TTLs <span class="tag p0">P0</span></li>
+        <li>Fail-open vs fail-closed per action; status page; regional failover <span class="tag p1">P1</span></li>
+        <li>SOC 2 Type II, pen tests, bug bounty <span class="tag p1">P1</span></li>
+      </ul></div>
+      <div class="card"><h3>Legal &amp; privacy</h3><ul>
+        <li>Behavioural telemetry is personal data under GDPR: DPA, purpose limits, retention (e.g. raw events 30 days), CMP integration on day one <span class="tag p0">P0</span></li>
+        <li>Template terms-of-service language for customers on agent use and visas <span class="tag p1">P1</span></li>
+        <li>EU AI Act and sector audits: Article 26 has deployers keep logs for at least 6 months, and the Annex III high-risk deadline moved to 2 Dec 2027. Map entry-log fields to SOX, HIPAA and FINRA duties too <span class="tag p1">P1</span></li>
+        <li>Data residency (EU and US regions) <span class="tag p1">P1</span></li>
+        <li>End users are the customer's employees: per-person agent reports can count as employee monitoring (German works councils, for example). Offer aggregate-only views <span class="tag p1">P1</span></li>
+      </ul></div>
+      <div class="card"><h3>Ecosystem &amp; standards</h3><ul>
+        <li>Provider BD: pitch the fast lane to Anthropic, OpenAI, Perplexity and Google before building B2 <span class="tag p1">P1</span></li>
+        <li>Join IETF webbotauth and the W3C WebMCP group; propose the handshake and an agent-declaration signal <span class="tag p2">P2</span></li>
+        <li>Integrations: Okta, Entra and Auth0 for admin policy; Splunk and Datadog; Stripe and Chargebee for metering <span class="tag p1">P1</span></li>
+      </ul></div>
+      <div class="card"><h3>Go-to-market</h3><ul>
+        <li>A free “agent audit” that installs in a day and gives a shareable report as the land motion <span class="tag p0">P0</span></li>
+        <li>Pricing metric: monitored active users plus decisions, with an agent-hours meter for billing <span class="tag p1">P1</span></li>
+        <li>A distinct brand: “passport” and “visa” names are already in use <span class="tag p1">P1</span></li>
+        <li>A competitive switching kit: SDK shape compatible with Switchfrog's <span class="tag p2">P2</span></li>
+      </ul></div>
+      <div class="card"><h3>Operating the models</h3><ul>
+        <li>Drift alerts when an agent ships a new version (recall drop on a named driver) <span class="tag p0">P0</span></li>
+        <li>Shadow models and per-site calibration; explainable reason codes <span class="tag p1">P1</span></li>
+        <li>An on-call rota for detection regressions, like fraud teams run <span class="tag p2">P2</span></li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>Sources.</b> Switchfrog facts come from their public docs and hosted SDK, read on 6 Oct 2026. Agent mechanics come from public teardowns and source code, and change with every release. Items marked “lab-validate” are hypotheses for the benchmark lab, not measured results. Walkthrough scores are illustrative. Market figures are in the companion research doc.</p>
+    <ul id="src-list">
+      <li><a href="https://switchfrog.com">switchfrog.com</a></li>
+      <li><a href="https://docs.switchfrog.com/llms-full.txt">Switchfrog docs corpus (llms-full.txt)</a></li>
+      <li><a href="https://api.switchfrog.com/sdk/v1.js">Switchfrog hosted SDK v1.js</a></li>
+      <li><a href="https://speedrun.a16z.com/companies/switchfrog">a16z speedrun: Switchfrog</a></li>
+      <li><a href="https://cheq.ai/blog/the-cyborg-session-reversing-detecting-claude-ai-agent-chrome-extension/">CHEQ: reversing Claude in Chrome</a></li>
+      <li><a href="https://gist.github.com/sshh12/e352c053627ccbe1636781f73d6d715b">Claude in Chrome internals (v1.0.56 teardown)</a></li>
+      <li><a href="https://labs.zenity.io/post/perplexity-comet-a-reversing-story">Zenity: reversing Comet</a></li>
+      <li><a href="https://chromium.googlesource.com/chromium/src/+/main/chrome/renderer/actor/">Chromium actor source (Gemini in Chrome)</a></li>
+      <li><a href="https://github.com/anthropics/claude-quickstarts/blob/main/computer-use-demo/computer_use_demo/tools/computer.py">Anthropic computer-use reference tool</a></li>
+      <li><a href="https://arxiv.org/abs/2605.01247">FP-Agent (arXiv 2605.01247)</a></li>
+      <li><a href="https://arxiv.org/abs/2607.26935">What Does It Take to Detect an AI Agent? (arXiv 2607.26935)</a></li>
+      <li><a href="https://arxiv.org/abs/2605.14786">Known By Their Actions (arXiv 2605.14786)</a></li>
+      <li><a href="https://arxiv.org/abs/2606.20910">Whose Agent Are You? (arXiv 2606.20910)</a></li>
+      <li><a href="https://arxiv.org/abs/2606.30119">Nobody Knows You're an LLM Bot (arXiv 2606.30119)</a></li>
+      <li><a href="https://datatracker.ietf.org/doc/draft-ietf-webbotauth-httpsig-protocol/">IETF Web Bot Auth draft -00</a></li>
+      <li><a href="https://developers.cloudflare.com/bots/reference/bot-verification/web-bot-auth/">Cloudflare Web Bot Auth docs</a></li>
+      <li><a href="https://developers.google.com/crawling/docs/crawlers-fetchers/web-bot-auth">Google-Agent Web Bot Auth</a></li>
+      <li><a href="https://help.openai.com/en/articles/11845367-chatgpt-agent-allowlisting">OpenAI agent allowlisting</a></li>
+      <li><a href="https://chairnerd.seatgeek.com/chasing-signature/">SeatGeek: verifying signed agents</a></li>
+      <li><a href="https://aws.amazon.com/blogs/security/authenticate-legitimate-ai-agent-traffic-with-aws-waf-bot-control/">AWS WAF Bot Control and Web Bot Auth</a></li>
+      <li><a href="https://developer.visa.com/capabilities/trusted-agent-protocol/trusted-agent-protocol-specifications">Visa Trusted Agent Protocol spec</a></li>
+      <li><a href="https://ap2-protocol.org/">AP2</a></li>
+      <li><a href="https://github.com/agent-intent/verifiable-intent/">Verifiable Intent</a></li>
+      <li><a href="https://webmachinelearning.github.io/webmcp/">WebMCP draft</a></li>
+      <li><a href="https://developer.chrome.com/docs/web-platform/device-bound-session-credentials">Chrome DBSC</a></li>
+      <li><a href="https://openid.net/specs/authorization-api-1_0.html">OpenID AuthZEN 1.0</a></li>
+      <li><a href="https://www.cedarpolicy.com/">Cedar</a></li>
+      <li><a href="https://arxiv.org/pdf/2403.04651">Cedar paper (latency benchmarks)</a></li>
+      <li><a href="https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy.md">AWS AgentCore Policy (LOG_ONLY mode)</a></li>
+      <li><a href="https://openid.net/specs/openid-caep-1_0.html">OpenID CAEP 1.0</a></li>
+      <li><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/">IETF Token Status List</a></li>
+      <li><a href="https://github.com/ocsf/ocsf-schema/releases">OCSF schema releases (1.9)</a></li>
+      <li><a href="https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-12">EU AI Act Article 12</a></li>
+      <li><a href="https://www.anthropic.com/research/prompt-injection-defenses">Anthropic: prompt-injection defences</a></li>
+      <li><a href="https://techcrunch.com/2026/07/09/openai-is-shutting-down-atlas-but-its-ai-browser-ambitions-are-still-growing/">TechCrunch: OpenAI shutting down Atlas</a></li>
+      <li><a href="https://edpb.europa.eu/system/files/2024-10/edpb_guidelines_202302_technical_scope_art_53_eprivacydirective_v2_en_0.pdf">EDPB Guidelines 2/2023 (ePrivacy 5(3))</a></li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+var reduce = false;
+try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){}
+
+/* ---------- rail highlighting ---------- */
+var links = Array.prototype.slice.call(document.querySelectorAll("nav.rail a"));
+var secs = links.map(function(a){ return document.querySelector(a.getAttribute("href")); });
+function onScroll(){
+  var y = window.scrollY + 120, cur = 0;
+  for (var i=0;i<secs.length;i++){ if (secs[i] && secs[i].offsetTop <= y) cur = i; }
+  links.forEach(function(a,i){ a.classList.toggle("on", i===cur); });
+}
+window.addEventListener("scroll", onScroll, {passive:true}); onScroll();
+
+/* ---------- walkthrough ---------- */
+var NS = "http://www.w3.org/2000/svg";
+var START = {x:430,y:312}, FIELD = {x:149,y:103}, BTN = {x:548,y:103};
+var STEPS = [
+  {id:"load", t:"Page load"},
+  {id:"approach", t:"Pointer approach"},
+  {id:"click", t:"Click"},
+  {id:"type", t:"Typing"},
+  {id:"rhythm", t:"Between actions"},
+  {id:"verdict", t:"Passport"}
+];
+function rng(seed){ var s = seed>>>0; return function(){ s = (Math.imul(s,1664525) + 1013904223)>>>0; return s/4294967296; }; }
+function bez(p0,p1,p2,p3,t){ var m=1-t; return {x:m*m*m*p0.x+3*m*m*t*p1.x+3*m*t*t*p2.x+t*t*t*p3.x, y:m*m*m*p0.y+3*m*m*t*p1.y+3*m*t*t*p2.y+t*t*t*p3.y}; }
+function humanPts(){
+  var r = rng(11), pts=[], N=34;
+  var P1={x:START.x-20,y:START.y-130}, P2={x:FIELD.x+110,y:FIELD.y+34}, P3={x:FIELD.x-8,y:FIELD.y-6};
+  for (var i=0;i<=N;i++){ var t=(1-Math.cos(Math.PI*i/N))/2, p=bez(START,P1,P2,P3,t); pts.push({x:p.x+(r()-.5)*2.6, y:p.y+(r()-.5)*2.6}); }
+  var last=pts[pts.length-1], end={x:FIELD.x+9,y:FIELD.y+5};
+  for (var k=1;k<=6;k++){ var u=k/6; pts.push({x:last.x+(end.x-last.x)*u+(r()-.5)*1.4, y:last.y+(end.y-last.y)*u+(r()-.5)*1.4}); }
+  pts[pts.length-1]=end; return pts;
+}
+var PATHS = {
+  human: humanPts(),
+  ext: [START, {x:FIELD.x,y:FIELD.y}],
+  cua: [START, {x:FIELD.x+3,y:FIELD.y-2}],
+  signed: [START, {x:FIELD.x,y:FIELD.y}]
+};
+var CLICK = { human:{dx:9,dy:5}, ext:{dx:0,dy:0}, cua:{dx:3,dy:-2}, signed:{dx:0,dy:0} };
+
+/* evidence per driver per step: s=signal, o=observed, w=weight (log-odds, + = agent), r=robustness */
+var EV = {
+ human: {
+  load:{n:"The sensor loads with the page and runs its environment probes. A real browser on a real device returns nothing unusual.",
+    e:[{s:"navigator.webdriver",o:"false",w:-0.2,r:"low"},{s:"Automation globals (17 probes)",o:"none found",w:-0.2,r:"low"},{s:"Viewport",o:"1512×862, stable",w:0,r:"low"}]},
+  approach:{n:"A hand on a mouse or trackpad produces a dense stream of samples: it speeds up, slows down, overshoots slightly and settles back.",
+    e:[{s:"Pointer samples on approach",o:"41 moves + 63 coalesced",w:-1.4,r:"medium"},{s:"Path shape",o:"curved; 8 px overshoot, then settle",w:-0.6,r:"medium"},{s:"Speed profile",o:"accelerate → peak → brake",w:-0.4,r:"medium"}]},
+  click:{n:"People hover briefly, press for about a tenth of a second, and rarely hit the exact centre of the field.",
+    e:[{s:"Distance from element centre",o:"10 px",w:-0.5,r:"medium"},{s:"Hover before press",o:"310 ms",w:-0.5,r:"medium"},{s:"Press → release",o:"104 ms",w:-0.4,r:"medium"}]},
+  type:{n:"Every character arrives as a keydown/keyup pair, with irregular gaps that follow the shape of the word.",
+    e:[{s:"Key events",o:"9 keydown/keyup pairs",w:-0.9,r:"medium"},{s:"Gap between keys",o:"130–240 ms, irregular",w:-0.6,r:"medium"},{s:"Key hold time",o:"70–120 ms",w:-0.3,r:"medium"}]},
+  rhythm:{n:"Between actions the pointer keeps drifting, the wheel scrolls in small trackpad steps, and the page stays focused and visible.",
+    e:[{s:"Pointer activity between actions",o:"continuous micro-motion",w:-0.8,r:"high"},{s:"Scrolling",o:"wheel deltas of 4–40 px",w:-0.4,r:"medium"},{s:"Focus / visibility",o:"focused, visible",w:-0.2,r:"situational"}]}
+ },
+ ext: {
+  load:{n:"Claude in Chrome runs inside the person's real Chrome and drives it through the chrome.debugger API, so the classic automation probes find nothing. Its tells are the overlay it injects (a Stop button and an orange glow border) and, possibly, a viewport that shrinks when Chrome's “started debugging this browser” banner appears.",
+    e:[{s:"navigator.webdriver",o:"false",w:0,r:"low"},{s:"Automation globals",o:"none found",w:0,r:"low"},{s:"Injected agent overlay",o:"#claude-agent-stop-container + glow border",w:1.2,r:"low"},{s:"Viewport height when the agent starts",o:"−42 px (debugger banner)",w:0.8,r:"lab"}]},
+  approach:{n:"Input sent through the DevTools protocol is trusted by the browser (isTrusted is true), but the pointer teleports: one mouseMoved event lands on the target with no samples in between.",
+    e:[{s:"Pointer samples on approach",o:"1 move, 349 px jump",w:1.8,r:"medium"},{s:"Coalesced samples",o:"0",w:0.4,r:"medium"}]},
+  click:{n:"Per a public teardown of v1.0.56: move, wait a fixed 100 ms, then press and release back to back. A click by element reference lands on the computed centre; coordinate clicks from a screenshot do not.",
+    e:[{s:"Hover before press",o:"100 ms, fixed every time",w:0.6,r:"medium"},{s:"Press → release",o:"≈ 0 ms",w:0.6,r:"medium"},{s:"Distance from element centre",o:"0.0 px (ref click)",w:0.7,r:"medium"}]},
+  type:{n:"Text arrives through Input.insertText one character at a time: nine input events, no keydown or keyup. Its form-fill tool is even plainer: it sets the value and fires input and change events with isTrusted = false.",
+    e:[{s:"Key events",o:"none",w:1.2,r:"high"},{s:"Input events",o:"9 × insertText, 1 char each, < 2 ms apart",w:1.0,r:"high"}]},
+  rhythm:{n:"The agent takes a screenshot, waits for the model, then acts. The pointer does not move between actions, and because the agent keeps working in its own tab group, trusted input can arrive while the tab is hidden.",
+    e:[{s:"Gaps between actions",o:"2.6–5.8 s, no motion",w:1.2,r:"high"},{s:"Trusted input while tab hidden",o:"3 of 7 actions",w:0.9,r:"situational"}]}
+ },
+ cua: {
+  load:{n:"OS-level computer-use agents (Anthropic's reference demo, OpenAI's computer-use model in a VM) move the real cursor from screenshots. They usually run in a VM with a stock screen size and no GPU.",
+    e:[{s:"Screen size",o:"1024×768 (common agent VM)",w:0.5,r:"low"},{s:"WebGL renderer",o:"software (SwiftShader)",w:0.6,r:"situational"}]},
+  approach:{n:"OS input looks physical to the browser, but xdotool's mousemove is a single jump. Some harnesses tween in a straight line at constant speed instead, which is just as easy to spot.",
+    e:[{s:"Pointer samples on approach",o:"1 OS-level jump",w:1.6,r:"medium"},{s:"Coalesced samples",o:"0",w:0.3,r:"medium"}]},
+  click:{n:"The click point comes from the model's reading of a scaled screenshot, so it lands off-centre, but there is no hover and press and release are back to back.",
+    e:[{s:"Distance from element centre",o:"3.6 px",w:0,r:"medium"},{s:"Hover before press",o:"0 ms",w:0.4,r:"medium"},{s:"Press → release",o:"≈ 0 ms",w:0.4,r:"medium"}]},
+  type:{n:"Typing emits real key events at a fixed cadence: the reference demo uses xdotool at 12 ms per key in 50-character chunks, which draws a tight comb.",
+    e:[{s:"Key events",o:"9 keydown/keyup pairs",w:0,r:"medium"},{s:"Gap between keys",o:"12 ms, σ ≈ 0",w:2.0,r:"medium"}]},
+  rhythm:{n:"Each action waits about 2 s for the screen to settle, then for the model, which leaves long, perfectly still gaps. Scrolling comes as clicks of wheel buttons 4 and 5.",
+    e:[{s:"Gaps between actions",o:"6–7 s, no motion",w:1.3,r:"high"},{s:"Scroll",o:"uniform wheel-button clicks",w:0.3,r:"medium"}]}
+ },
+ signed: {
+  load:{n:"The very first request carries a Web Bot Auth signature. The edge verifies it against the operator's published key before the page renders. That settles the passport, and behaviour now only has to agree.",
+    e:[{s:"Signature-Agent",o:"https://chatgpt.com",w:0,r:"crypto"},{s:"Ed25519 signature",o:"valid, key in directory, nonce fresh",w:99,r:"crypto"},{s:"Source network",o:"provider IP range",w:0,r:"medium"}]},
+  approach:{n:"A remote browser under DevTools-protocol control teleports the pointer, just like an extension agent. This corroborates the signature.",
+    e:[{s:"Pointer samples on approach",o:"1 move, 349 px jump",w:0,r:"corroborates"}]},
+  click:{n:"Clicks land on the computed centre. Consistent with the signed identity.",
+    e:[{s:"Distance from element centre",o:"0.0 px",w:0,r:"corroborates"},{s:"Press → release",o:"0 ms",w:0,r:"corroborates"}]},
+  type:{n:"Fill-style text insertion with no key events.",
+    e:[{s:"Input events",o:"1 × insertText, +9 chars",w:0,r:"corroborates"}]},
+  rhythm:{n:"Fast, regular cadence. If the behaviour ever looked human while the signature said agent, or the reverse, we would raise a spoofing alert.",
+    e:[{s:"Gaps between actions",o:"1.2–2.5 s",w:0,r:"corroborates"},{s:"Signature vs behaviour",o:"consistent",w:0,r:"crypto"}]}
+ }
+};
+var VERDICT = {
+  human:{tier:"Human",driver:"—",conf:"0.97 human",src:"behaviour",next:"decide(export_csv) treats this as the account holder: admit and log.",mrz:"H<LDG<<NO<AGENT<<<<<<<<<<<<<<<<<<<<<<<\nS9F2A71<USR8A41<<HUMAN<<097<<<<<<<<<<<<"},
+  ext:{tier:"Recognised",driver:"Claude in Chrome (overlay + mechanics match)",conf:"0.94 agent",src:"behaviour",next:"decide(export_csv) finds no visa, so the person sees a consent prompt (section 7).",mrz:"P<LDG<CLAUDE<IN<CHROME<<RECOGNISED<<<<<<\nS9F2A71<USR8A41<<CDP<INSERTTEXT<094<<<<"},
+  cua:{tier:"Unknown automation",driver:"computer-use pattern, product not named",conf:"0.90 agent",src:"behaviour",next:"decide(export_csv) applies the unknown-automation policy: ask the person to confirm with a passkey.",mrz:"P<LDG<UNKNOWN<AUTOMATION<<<<<<<<<<<<<<<\nS9F2A71<USR8A41<<OSINPUT<CADENCE<090<<<"},
+  signed:{tier:"Verified",driver:"ChatGPT agent (OpenAI)",conf:"cryptographic",src:"Web Bot Auth signature",next:"decide(export_csv) checks for a visa bound to this agent key; with one, admit.",mrz:"P<LDG<OPENAI<CHATGPT<AGENT<<VERIFIED<<<\nS9F2A71<USR8A41<<WBA<ED25519<SIG<<<<<<<"}
+};
+var DRV_LABEL = {human:"Person",ext:"Extension agent",cua:"Computer-use agent",signed:"Signed cloud agent"};
+var state = {d:"ext", s:0}, playTimer=null, animId=null;
+
+var scene = document.getElementById("wt-scene"), tl = document.getElementById("wt-tl"), panel = document.getElementById("wt-panel");
+function el(tag, attrs, parent, text){ var n=document.createElementNS(NS,tag); for (var k in attrs){ n.setAttribute(k, attrs[k]); } if (text!=null) n.textContent=text; if (parent) parent.appendChild(n); return n; }
+function clear(n){ while(n.firstChild) n.removeChild(n.firstChild); }
+
+function drawApp(g, typed){
+  el("rect",{x:1,y:1,width:638,height:378,rx:10,"class":"d-box"},g);
+  el("line",{x1:1,y1:32,x2:639,y2:32,"class":"d-line"},g);
+  [16,30,44].forEach(function(x){ el("circle",{cx:x,cy:16,r:4.5,"class":"d-soft"},g); });
+  el("rect",{x:70,y:8,width:300,height:17,rx:8,"class":"d-soft"},g);
+  el("text",{x:82,y:20.5,"class":"d-s"},g,"app.ledgerline.com/invoices");
+  el("text",{x:24,y:68,"class":"d-t","font-size":"16"},g,"Invoices");
+  el("rect",{x:24,y:86,width:250,height:34,rx:6,"class":"d-box"},g);
+  if (typed){ el("text",{x:36,y:108,"class":"d-t","font-weight":"500"},g,typed); el("line",{x1:36+typed.length*7.6,y1:94,x2:36+typed.length*7.6,y2:113,stroke:"currentColor","class":"d-arr"},g); }
+  else el("text",{x:36,y:108,"class":"d-s"},g,"Search invoices…");
+  el("rect",{x:480,y:86,width:136,height:34,rx:6,"class":"d-new"},g);
+  el("text",{x:548,y:108,"text-anchor":"middle","class":"d-t"},g,"Export CSV");
+  var rows=[["INV-2041","Northwind Traders","$4,120.00","Paid"],["INV-2040","Contoso Ltd","$980.50","Due"],["INV-2039","Northwind Traders","$2,310.00","Paid"],["INV-2038","Fabrikam","$7,045.10","Overdue"],["INV-2037","Tailspin Toys","$615.00","Paid"]];
+  el("line",{x1:24,y1:146,x2:616,y2:146,"class":"d-line"},g);
+  ["Number","Customer","Amount","Status"].forEach(function(h,i){ el("text",{x:[24,140,380,500][i],y:140,"class":"d-lab"},g,h.toUpperCase()); });
+  rows.forEach(function(r,j){ var y=172+j*34; r.forEach(function(c,i){ el("text",{x:[24,140,380,500][i],y:y,"class":i===0?"d-s":"d-t","font-weight":"400"},g,c); }); el("line",{x1:24,y1:y+12,x2:616,y2:y+12,"class":"d-line"},g); });
+}
+function cursor(g,p,id){ var c=el("g",{transform:"translate("+p.x+","+p.y+")",id:id||""},g); el("path",{d:"M0,0 L0,17 L4.6,12.6 L7.6,19.4 L10.4,18.2 L7.4,11.6 L13,11.6 Z","class":"d-ink",stroke:"var(--panel)","stroke-width":"1.2"},c); return c; }
+function chip(g,x,y,txt,cls){ var w=txt.length*6.6+16; el("rect",{x:x,y:y,width:w,height:20,rx:10,"class":cls||"d-new"},g); el("text",{x:x+8,y:y+14,"class":"d-s"},g,txt); return w; }
+
+function renderScene(){
+  clear(scene);
+  var d=state.d, sid=STEPS[state.s].id, g=el("g",{},scene);
+  var typed = (state.s>=3) ? "northwind" : "";
+  drawApp(g, typed);
+  var pts = PATHS[d], o=el("g",{},scene);
+  var tgt = {x:FIELD.x+CLICK[d].dx, y:FIELD.y+CLICK[d].dy};
+  if (sid==="load"){
+    cursor(o,START);
+    if (d==="signed"){ chip(o,380,40,"✓ Signature-Agent verified at edge","d-new"); }
+    else chip(o,440,40,"sensor active · probes run","d-soft");
+    if (d==="ext") chip(o,24,346,"#claude-agent-stop-container + glow border in DOM","d-new");
+    if (d==="cua") chip(o,24,346,"screen 1024×768 · software WebGL","d-new");
+  }
+  if (sid==="approach" || sid==="click"){
+    var faded = sid==="click";
+    if (d==="human"){
+      var dstr = pts.map(function(p,i){ return (i?"L":"M")+p.x.toFixed(1)+","+p.y.toFixed(1); }).join(" ");
+      el("path",{d:dstr,"class":"d-arr",opacity:faded?.35:1},o);
+      pts.forEach(function(p){ el("circle",{cx:p.x,cy:p.y,r:2.1,"class":"d-human",opacity:faded?.35:1},o); });
+    } else {
+      el("line",{x1:START.x,y1:START.y,x2:pts[1].x,y2:pts[1].y,"class":"d-dash",opacity:faded?.35:1},o);
+      el("circle",{cx:START.x,cy:START.y,r:3,"class":"d-stamp"},o);
+      if (!faded) chip(o,(START.x+FIELD.x)/2+10,(START.y+FIELD.y)/2,d==="cua"?"1 OS-level jump (xdotool)":"1 pointermove · 0 ms","d-new");
+    }
+    if (!faded){
+      if (d==="human") chip(o,300,230,"41 samples · 0.62 s","d-hum");
+    }
+    var cur = cursor(o, sid==="click"?tgt:START, "wt-cur");
+    if (sid==="approach" && !reduce) animateCursor(cur, d==="human" ? pts : [START,START,START,START,START,START,pts[1]]);
+    else if (sid==="approach") cur.setAttribute("transform","translate("+pts[pts.length-1].x+","+pts[pts.length-1].y+")");
+    if (sid==="click"){
+      // target centre + click marker
+      el("line",{x1:FIELD.x-8,y1:FIELD.y,x2:FIELD.x+8,y2:FIELD.y,"class":"d-arr"},o);
+      el("line",{x1:FIELD.x,y1:FIELD.y-8,x2:FIELD.x,y2:FIELD.y+8,"class":"d-arr"},o);
+      el("circle",{cx:tgt.x,cy:tgt.y,r:5,"class":d==="human"?"d-human":"d-stamp",opacity:.85},o);
+      // magnifier
+      var mx=330, my=268, R=62;
+      el("line",{x1:FIELD.x+20,y1:FIELD.y+18,x2:mx-R*0.7,y2:my-R*0.7,"class":"d-dash"},o);
+      el("circle",{cx:mx,cy:my,r:R,"class":"d-box"},o);
+      var s=4.2; // zoom
+      el("rect",{x:mx-R+6,y:my-17*s/2.2,width:2*R-12,height:34*s/2.2,rx:4,"class":"d-soft"},o);
+      el("line",{x1:mx-14,y1:my,x2:mx+14,y2:my,"class":"d-arr"},o);
+      el("line",{x1:mx,y1:my-14,x2:mx,y2:my+14,"class":"d-arr"},o);
+      el("circle",{cx:mx+CLICK[d].dx*s,cy:my+CLICK[d].dy*s,r:6,"class":d==="human"?"d-human":"d-stamp"},o);
+      var off=Math.sqrt(CLICK[d].dx*CLICK[d].dx+CLICK[d].dy*CLICK[d].dy).toFixed(1);
+      el("text",{x:mx,y:my+R+16,"text-anchor":"middle","class":"d-s"},o,"click lands "+off+" px from centre");
+    }
+  }
+  if (sid==="type"){
+    cursor(o,{x:tgt.x+60,y:tgt.y+12});
+    chip(o,300,140,{human:"9 keydown/keyup pairs",cua:"9 keys, exactly 12 ms apart",ext:"0 key events · 9 × insertText",signed:"0 key events · 1 fill (+9 chars)"}[d],d==="human"?"d-hum":"d-new");
+  }
+  if (sid==="rhythm"){
+    var spots=[{x:149,y:103},{x:200,y:172},{x:200,y:240},{x:548,y:103},{x:160,y:206},{x:420,y:274}];
+    if (d==="human"){
+      var r=rng(5), p={x:149,y:103}, s2="M149,103";
+      for (var i=0;i<70;i++){ p={x:Math.max(30,Math.min(610,p.x+(r()-.5)*70)), y:Math.max(60,Math.min(350,p.y+(r()-.5)*44))}; s2+=" L"+p.x.toFixed(1)+","+p.y.toFixed(1); }
+      el("path",{d:s2,"class":"d-arr",opacity:.55},o);
+      chip(o,24,346,"pointer never rests: 2,180 samples in 30 s","d-hum");
+    } else {
+      spots.forEach(function(sp,i){ if(i) el("line",{x1:spots[i-1].x,y1:spots[i-1].y,x2:sp.x,y2:sp.y,"class":"d-dash",opacity:.6},o); el("circle",{cx:sp.x,cy:sp.y,r:5,"class":"d-stamp"},o); el("text",{x:sp.x+8,y:sp.y-6,"class":"d-s"},o,String(i+1)); });
+      chip(o,24,346,"pointer exists only where it acts: "+spots.length+" positions in 30 s","d-new");
+    }
+  }
+  if (sid==="verdict"){
+    cursor(o,{x:BTN.x+(d==="human"?11:0),y:BTN.y+(d==="human"?6:0)});
+    el("rect",{x:476,y:82,width:144,height:42,rx:8,fill:"none",stroke:"var(--stamp)","stroke-width":"2","stroke-dasharray":"4 3"},o);
+    chip(o,352,136,"POST /v1/decide { action: export_csv }","d-new");
+  }
+}
+function animateCursor(cur, pts){
+  if (animId) cancelAnimationFrame(animId);
+  var t0=null, dur=1100;
+  function frame(ts){
+    if (!t0) t0=ts; var u=Math.min(1,(ts-t0)/dur), f=u*(pts.length-1), i=Math.floor(f), k=f-i;
+    var a=pts[i], b=pts[Math.min(i+1,pts.length-1)];
+    cur.setAttribute("transform","translate("+(a.x+(b.x-a.x)*k).toFixed(1)+","+(a.y+(b.y-a.y)*k).toFixed(1)+")");
+    if (u<1) animId=requestAnimationFrame(frame);
+  }
+  animId=requestAnimationFrame(frame);
+}
+
+/* timeline */
+function axis(g,tmax,unit,ticks,y){
+  y=y||92; var x0=60,x1=620;
+  el("line",{x1:x0,y1:y,x2:x1,y2:y,"class":"d-arr"},g);
+  ticks.forEach(function(t){ var x=x0+(x1-x0)*t/tmax; el("line",{x1:x,y1:y,x2:x,y2:y+4,"class":"d-arr"},g); el("text",{x:x,y:y+16,"text-anchor":"middle","class":"d-s"},g,t+unit); });
+  return function(t){ return x0+(x1-x0)*t/tmax; };
+}
+function renderTL(){
+  clear(tl);
+  var d=state.d, sid=STEPS[state.s].id, g=el("g",{},tl);
+  var col = d==="human"?"d-human":"d-stamp";
+  if (sid==="load"){
+    el("text",{x:10,y:16,"class":"d-lab"},g,"ENVIRONMENT PROBES AT LOAD");
+    var items = d==="signed" ? [["HTTP signature","verified ✓"],["webdriver","false"],["automation globals","0 / 17"],["source IP","provider range"]] :
+      d==="ext" ? [["webdriver","false"],["automation globals","0 / 17"],["agent overlay","stop button + glow"],["viewport shift","−42 px (test)"]] :
+      d==="cua" ? [["webdriver","false"],["automation globals","0 / 17"],["screen","1024×768"],["WebGL","software"]] :
+      [["webdriver","false"],["automation globals","0 / 17"],["viewport","stable"],["overlays","none"]];
+    items.forEach(function(it,i){ var x=10+i*156; el("rect",{x:x,y:30,width:148,height:56,rx:8,"class":"d-box"},g); el("text",{x:x+10,y:52,"class":"d-s"},g,it[0]); el("text",{x:x+10,y:74,"class":"d-t"},g,it[1]); });
+    return;
+  }
+  if (sid==="approach"){
+    el("text",{x:10,y:16,"class":"d-lab"},g,"POINTER EVENTS DURING APPROACH");
+    var X=axis(g,700," ms",[0,100,200,300,400,500,600,700]);
+    if (d==="human"){ for (var t=0;t<=620;t+=15){ el("line",{x1:X(t),y1:40,x2:X(t),y2:84,"class":"d-arr",stroke:"var(--human)"},g); } for (var t2=7;t2<=620;t2+=15){ el("line",{x1:X(t2),y1:58,x2:X(t2),y2:84,stroke:"var(--human)","stroke-width":"1",opacity:.5},g); } el("text",{x:X(630),y:36,"class":"d-s"},g,"41 + 63 coalesced"); }
+    else if (d==="cua"){ el("line",{x1:X(0),y1:34,x2:X(0),y2:84,stroke:"var(--stamp)","stroke-width":"3"},g); el("text",{x:X(0)+10,y:44,"class":"d-s"},g,"1 OS-level move (xdotool mousemove), then nothing"); }
+    else { el("line",{x1:X(0),y1:34,x2:X(0),y2:84,stroke:"var(--stamp)","stroke-width":"3"},g); el("text",{x:X(0)+10,y:44,"class":"d-s"},g,"1 pointermove, then nothing"); }
+    return;
+  }
+  if (sid==="click"){
+    el("text",{x:10,y:16,"class":"d-lab"},g,"HOVER → PRESS → RELEASE");
+    var X2=axis(g,500," ms",[0,100,200,300,400,500]);
+    var hov = {human:310,ext:100,cua:0,signed:0}[d], press = {human:104,ext:0,cua:0,signed:0}[d];
+    if (hov){ el("rect",{x:X2(0),y:44,width:X2(hov)-X2(0),height:18,rx:3,"class":"d-soft"},g); el("text",{x:X2(hov/2),y:57,"text-anchor":"middle","class":"d-s"},g,"hover "+hov+" ms"); }
+    el("rect",{x:X2(hov),y:44,width:Math.max(3,X2(hov+press)-X2(hov)),height:18,rx:3,"class":d==="human"?"d-hum":"d-new"},g);
+    el("text",{x:X2(hov+press)+8,y:57,"class":"d-s"},g,press?"press "+press+" ms":"press + release back to back (≈0 ms)");
+    if (d==="ext") el("text",{x:X2(0),y:82,"class":"d-s"},g,"fixed 100 ms wait after the single move, on every click");
+    return;
+  }
+  if (sid==="type"){
+    el("text",{x:10,y:16,"class":"d-lab"},g,"KEY AND INPUT EVENTS · “northwind”");
+    var X3=axis(g,2," s",[0,0.5,1,1.5,2]);
+    el("text",{x:10,y:44,"class":"d-s"},g,"keys"); el("text",{x:10,y:76,"class":"d-s"},g,"input");
+    var chars="northwind".split("");
+    if (d==="human"){ var downs=[0,.21,.34,.55,.74,.98,1.12,1.31,1.52], holds=[.09,.07,.11,.08,.10,.09,.07,.12,.08];
+      downs.forEach(function(t,i){ el("rect",{x:X3(t),y:32,width:X3(t+holds[i])-X3(t),height:16,rx:2,"class":"d-hum"},g); el("text",{x:X3(t)+2,y:28,"class":"d-s"},g,chars[i]); el("line",{x1:X3(t+.01),y1:66,x2:X3(t+.01),y2:82,stroke:"var(--human)","stroke-width":"1.5"},g); }); }
+    else if (d==="cua"){ for (var k=0;k<9;k++){ var tk=k*0.012; el("line",{x1:X3(tk),y1:30,x2:X3(tk),y2:50,stroke:"var(--stamp)","stroke-width":"1.6"},g); el("line",{x1:X3(tk),y1:66,x2:X3(tk),y2:82,stroke:"var(--stamp)","stroke-width":"1.2"},g); } el("text",{x:X3(0.08),y:44,"class":"d-s"},g,"← 9 keys in 0.1 s, 12 ms apart"); }
+    else if (d==="ext"){ el("text",{x:X3(0.05),y:44,"class":"d-s"},g,"no key events"); for (var q=0;q<9;q++){ el("line",{x1:X3(q*0.0018),y1:64,x2:X3(q*0.0018),y2:84,stroke:"var(--stamp)","stroke-width":"1.4"},g); } el("text",{x:X3(0)+14,y:78,"class":"d-s"},g,"9 input events · insertText · 1 char each · < 2 ms apart"); }
+    else { el("text",{x:X3(0.05),y:44,"class":"d-s"},g,"no key events"); el("rect",{x:X3(0),y:64,width:6,height:20,"class":"d-stamp"},g); el("text",{x:X3(0)+12,y:78,"class":"d-s"},g,"one input event · insertText · +9 chars (fill)"); }
+    return;
+  }
+  if (sid==="rhythm"){
+    el("text",{x:10,y:16,"class":"d-lab"},g,"30 SECONDS OF SESSION: ACTIONS ▲ AND POINTER MOTION |");
+    var X4=axis(g,30," s",[0,5,10,15,20,25,30]);
+    var acts = d==="human"?[1.2,3.0,4.1,9.5,11.0,17.8,19.0,25.3,27.1]:(d==="ext"?[2.1,6.4,9.0,14.7,18.1,23.9,27.0]:(d==="cua"?[3.0,9.8,16.1,22.7,28.9]:[0.8,2.4,3.9,6.1,7.4,9.9,11.6,13.0,15.2,16.9,18.4,20.8,22.1,24.6,26.0,28.3]));
+    if (d==="human"){ var r=rng(3); for (var m=0;m<180;m++){ var tm=r()*30; el("line",{x1:X4(tm),y1:52,x2:X4(tm),y2:52+r()*26,stroke:"var(--human)","stroke-width":"1",opacity:.55},g); } }
+    acts.forEach(function(t){ var x=X4(t); el("path",{d:"M"+x+",30 l-5,9 h10 z","class":col},g); if (d!=="human") el("line",{x1:x,y1:52,x2:x,y2:78,stroke:"var(--stamp)","stroke-width":"1.4"},g); });
+    if (d==="ext") el("text",{x:X4(14.7)+8,y:66,"class":"d-s"},g,"still between actions");
+    if (d==="cua") el("text",{x:X4(9.8)+8,y:66,"class":"d-s"},g,"screenshot → model → act");
+    return;
+  }
+  if (sid==="verdict"){
+    el("text",{x:10,y:16,"class":"d-lab"},g,"EVIDENCE SCORE AFTER EACH STEP");
+    var y0=60, sc=5.5; // px per unit
+    el("line",{x1:60,y1:y0,x2:620,y2:y0,"class":"d-line"},g);
+    el("line",{x1:60,y1:y0-3*sc,x2:620,y2:y0-3*sc,"class":"d-dash",stroke:"var(--stamp)"},g);
+    el("line",{x1:60,y1:y0+3*sc,x2:620,y2:y0+3*sc,"class":"d-dash",stroke:"var(--human)"},g);
+    el("text",{x:6,y:y0-3*sc+4,"class":"d-s"},g,"agent +3"); el("text",{x:6,y:y0+3*sc+4,"class":"d-s"},g,"human −3");
+    if (d==="signed"){ el("text",{x:340,y:y0-26,"text-anchor":"middle","class":"d-t"},g,"Decided at step 1 by signature: no accumulation needed"); return; }
+    var cum=0, pts=[{x:60,y:y0}];
+    STEPS.slice(0,5).forEach(function(st,i){ cum+=sumW(d,st.id); var x=60+(i+1)*112, y=y0-Math.max(-8,Math.min(8,cum))*sc; pts.push({x:x,y:y}); el("text",{x:x,y:108,"text-anchor":"middle","class":"d-s"},g,st.t.split(" ")[0]); });
+    el("path",{d:pts.map(function(p,i){return (i?"L":"M")+p.x+","+p.y;}).join(" "),"class":d==="human"?"d-arr":"d-arrv","stroke-width":"2"},g);
+    pts.forEach(function(p){ el("circle",{cx:p.x,cy:p.y,r:3.5,"class":col},g); });
+  }
+}
+function sumW(d,sid){ var e=EV[d][sid]; if(!e) return 0; return e.e.reduce(function(a,b){ return a+(b.w>50?0:b.w); },0); }
+function scoreTo(d,uptoIdx){ var s=0; for (var i=0;i<=Math.min(uptoIdx,4);i++) s+=sumW(d,STEPS[i].id); return s; }
+function robChip(r){ var m={low:["easy to fake","g"],medium:["fakeable","w"],high:["costly to fake","h"],situational:["situational","g"],lab:["lab-validate","w"],crypto:["cryptographic","v"],corroborates:["corroborates","g"]}[r]||[r,"g"]; return '<span class="chip '+m[1]+'">'+m[0]+'</span>'; }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+
+function renderPanel(){
+  var d=state.d, st=STEPS[state.s], h="";
+  h+='<p class="eyebrow">Step '+(state.s+1)+' of 6 · '+esc(DRV_LABEL[d])+'</p><h3>'+esc(st.t)+'</h3>';
+  var verified = d==="signed";
+  var score = scoreTo(d,state.s);
+  if (st.id!=="verdict"){
+    var ev=EV[d][st.id];
+    h+='<p class="small">'+esc(ev.n)+'</p><div class="ev">';
+    ev.e.forEach(function(x){
+      var eff = x.w>50 ? '<span class="chip v">decisive: verified</span>' : (x.w===0 ? '<span class="chip g">neutral</span>' : (x.w>0 ? '<span class="chip v">+'+x.w.toFixed(1)+' agent</span>' : '<span class="chip h">'+x.w.toFixed(1)+' human</span>'));
+      h+='<div class="ev-row"><span class="s">'+esc(x.s)+'</span><span class="o">'+esc(x.o)+'</span><span class="e">'+eff+robChip(x.r)+'</span></div>';
+    });
+    h+='</div>';
+  } else {
+    var v=VERDICT[d];
+    h+='<div class="passport"><div class="pp-h"><span>PASSPORT · SESSION s_9f2a71</span><span>'+esc(v.tier.toUpperCase())+'</span></div><dl>'+
+      '<dt>Tier</dt><dd>'+esc(v.tier)+'</dd><dt>Driver</dt><dd>'+esc(v.driver)+'</dd><dt>Confidence</dt><dd>'+esc(v.conf)+'</dd><dt>Source</dt><dd>'+esc(v.src)+'</dd><dt>For</dt><dd>usr_8a41 (Northwind)</dd></dl>'+
+      '<div class="pp-mrz">'+esc(v.mrz)+'</div></div><p class="small"><b>Next:</b> '+esc(v.next)+'</p>';
+  }
+  // meter
+  var pos = verified ? 98 : Math.max(2,Math.min(98, 50 + score/8*50));
+  var lab = verified ? "verified" : (score>=3?"agent":(score<=-3?"human":"unknown"));
+  h+='<div><div class="meter" aria-label="Evidence score '+score.toFixed(1)+', verdict '+lab+'"><span class="zh">HUMAN</span><span class="zu">UNKNOWN</span><span class="za">'+(verified?"VERIFIED":"AGENT")+'</span><i style="left:'+pos+'%"></i></div>'+
+     '<div class="meter-lab"><span>−8</span><span>score '+(verified?"signature":(score>0?"+":"")+score.toFixed(1))+' → '+lab+'</span><span>+8</span></div></div>';
+  panel.innerHTML=h;
+}
+function renderSteps(){
+  var box=document.getElementById("wt-steps"); box.innerHTML="";
+  STEPS.forEach(function(st,i){ var b=document.createElement("button"); b.type="button"; b.textContent=(i+1)+" "+st.t; if(i===state.s) b.setAttribute("aria-current","step"); b.addEventListener("click",function(){ stopPlay(); state.s=i; render(); }); box.appendChild(b); });
+  document.getElementById("wt-prev").disabled = state.s===0;
+  document.getElementById("wt-next").disabled = state.s===STEPS.length-1;
+  document.getElementById("wt-pos").textContent = DRV_LABEL[state.d]+" · step "+(state.s+1)+"/6";
+}
+function render(){ renderSteps(); renderScene(); renderTL(); renderPanel(); }
+document.querySelectorAll("#wt-drivers button").forEach(function(b){
+  b.addEventListener("click",function(){ document.querySelectorAll("#wt-drivers button").forEach(function(x){ x.setAttribute("aria-pressed", x===b?"true":"false"); }); state.d=b.getAttribute("data-d"); render(); });
+});
+document.getElementById("wt-prev").addEventListener("click",function(){ stopPlay(); if(state.s>0){state.s--;render();} });
+document.getElementById("wt-next").addEventListener("click",function(){ stopPlay(); if(state.s<STEPS.length-1){state.s++;render();} });
+function stopPlay(){ if(playTimer){ clearInterval(playTimer); playTimer=null; document.getElementById("wt-play").textContent="Play all"; } }
+document.getElementById("wt-play").addEventListener("click",function(){
+  if (playTimer){ stopPlay(); return; }
+  state.s=0; render(); this.textContent="Pause";
+  playTimer=setInterval(function(){ if(state.s>=STEPS.length-1){ stopPlay(); return; } state.s++; render(); }, 3200);
+});
+render();
+
+/* ---------- border simulator ---------- */
+var SIM = {who:"recognised", visa:"none", action:"export", mode:"enforce"};
+var ACT = {view:{l:"View report",risk:"low",id:"view_report"},export:{l:"Export CSV",risk:"medium",id:"export_csv"},invite:{l:"Invite teammate",risk:"medium",id:"invite_user"},payroll:{l:"Change payroll",risk:"high",id:"change_payroll"},delete:{l:"Delete workspace",risk:"critical",id:"delete_workspace"}};
+var STAMP = {admit:["Admitted","admit"],slow:["Admitted · slowed","slow"],visa:["Visa requested","visa"],ask:["Referred to holder","ask"],refuse:["Refused","refuse"]};
+var POL = {
+ "human-default":'@id("human-default")\n@outcome("admit")\npermit (principal is Human, action, resource);',
+ "critical-humans-only":'@id("critical-humans-only")\n@outcome("refuse")\nforbid (principal is Agent, action in Action::"critical", resource);',
+ "visa-revoked":'@id("visa-revoked")\n@outcome("refuse")\nforbid (principal is Agent, action, resource)\nwhen { context.visa.status == "revoked" };',
+ "unknown-read-throttle":'@id("unknown-read-throttle")\n@outcome("slow")\npermit (principal is Agent, action in Action::"read", resource)\nwhen { principal.tier == "unknown" };',
+ "unknown-step-up":'@id("unknown-step-up")\n@outcome("ask_human")\nforbid (principal is Agent, action in Action::"sensitive", resource)\nwhen { principal.tier == "unknown" }\nunless { context.human_confirmed };',
+ "unknown-no-writes":'@id("unknown-no-writes")\n@outcome("refuse")\nforbid (principal is Agent, action in Action::"consequential", resource)\nwhen { principal.tier == "unknown" };',
+ "visa-required":'@id("visa-required")\n@outcome("request_visa")\nforbid (principal is Agent, action, resource)\nwhen { ["verified", "recognised"].contains(principal.tier) }\nunless { context.visa.status == "active" };',
+ "visa-renewal":'@id("visa-renewal")\n@outcome("request_visa")\nforbid (principal is Agent, action, resource)\nwhen { context.visa.status == "expired" };',
+ "visa-scope-admit":'@id("visa-scope-admit")\n@outcome("admit")\npermit (principal is Agent, action in Action::"export", resource)\nwhen { context.visa.status == "active" &&\n       context.visa.scopes.contains("export") };',
+ "visa-scope-view":'@id("visa-scope-view")\n@outcome("admit")\npermit (principal is Agent, action in Action::"read", resource)\nwhen { context.visa.status == "active" &&\n       context.visa.scopes.contains("view") };',
+ "outside-visa-step-up":'@id("outside-visa-step-up")\n@outcome("ask_human")\nforbid (principal is Agent, action in Action::"sensitive", resource)\nunless { context.visa.scopes.contains("invite") ||\n         context.human_confirmed };',
+ "consequential-cosign":'@id("consequential-cosign")\n@outcome("ask_human")\nforbid (principal is Agent, action in Action::"consequential", resource)\nwhen { principal.tier == "verified" }\nunless { context.passkey_cosign };',
+ "recognised-no-consequential":'@id("recognised-no-consequential")\n@outcome("refuse")\nforbid (principal is Agent, action in Action::"consequential", resource)\nwhen { principal.tier == "recognised" };'
+};
+function R(o,p,why,agentMsg){ return {o:o,p:p,why:why,agentMsg:agentMsg}; }
+function decide(s){
+  var a=ACT[s.action];
+  if (s.who==="human") return R("admit","human-default","A person is driving. Passport Control only records the action.","—");
+  if (a.risk==="critical") return R("refuse","critical-humans-only","Deleting a workspace is reserved for people, whatever visa the agent holds.","403 · This action can only be done by the account holder.");
+  if (s.visa==="revoked") return R("refuse","visa-revoked","The person revoked this agent's visa. Every action is refused until they grant a new one.","403 · Access for this agent was revoked by the account holder.");
+  if (s.who==="unknown"){
+    if (a.risk==="low") return R("slow","unknown-read-throttle","Automation of unknown origin may read, at a lower rate, so scrapers cannot drain the account.","200 · Rate limited to 30 requests/min.");
+    if (a.risk==="medium") return R("ask","unknown-step-up","Unknown automation needs a passkey co-sign from the person for sensitive actions.","202 · Waiting for the account holder to confirm.");
+    return R("refuse","unknown-no-writes","Unknown automation may never take consequential actions.","403 · Identify your agent to request access.");
+  }
+  if (s.visa==="none") return R("visa","visa-required","A "+s.who+" agent is acting with no visa, so the person sees the consent prompt and the agent waits.","403 · Waiting for the account holder to allow this agent.");
+  if (s.visa==="expired") return R("visa","visa-renewal","The visa has expired. The person gets a one-tap renewal with the same scopes.","403 · Visa expired; renewal requested.");
+  if (s.action==="view") return R("admit","visa-scope-view","The active visa includes view.","200");
+  if (s.action==="export") return R("admit","visa-scope-admit","The active visa includes export and the volume is within today's cap. Fast lane: the export_report tool is offered for next time.","200 · Tip: use the export_report tool.");
+  if (s.action==="invite") return R("ask","outside-visa-step-up","Invite is outside the visa. The person can approve this one invite with a passkey, or extend the visa.","202 · Waiting for the account holder to confirm.");
+  if (s.who==="verified") return R("ask","consequential-cosign","Payroll is outside the visa. A verified agent may still do it with a passkey co-sign from the person on this exact change.","202 · Waiting for the account holder's passkey.");
+  return R("refuse","recognised-no-consequential","Recognised agents (behaviour only, no signature) cannot hold consequential scopes. The person can make the change themselves.","403 · Consequential actions need a verified agent or the account holder.");
+}
+function renderSim(){
+  document.querySelectorAll(".sim .seg").forEach(function(seg){ var k=seg.getAttribute("data-k"); seg.querySelectorAll("button").forEach(function(b){ b.setAttribute("aria-pressed", b.getAttribute("data-v")===SIM[k]?"true":"false"); }); });
+  var r=decide(SIM), st=STAMP[r.o], obs=SIM.mode==="observe" && r.o!=="admit";
+  var tier = SIM.who==="human"?"human":SIM.who;
+  var entry = {
+    ts:"2026-10-06T10:44:12Z", entry:"e_4413", session:"s_9f2a71",
+    actor: SIM.who==="human" ? {type:"human"} : {type:"agent",tier:tier,driver:SIM.who==="verified"?"chatgpt-agent":(SIM.who==="recognised"?"claude-in-chrome":null),confidence:SIM.who==="verified"?"signature":0.94},
+    on_behalf_of:"usr_8a41", visa: SIM.visa==="none"||SIM.who==="human"?null:{id:"V-7F3A-21",status:SIM.visa},
+    action:ACT[SIM.action].id, outcome: obs?"admit":(r.o==="ask"?"ask_human":(r.o==="visa"?"request_visa":r.o)),
+    would_have: obs?(r.o==="ask"?"ask_human":(r.o==="visa"?"request_visa":r.o)):undefined,
+    policy:r.p, mode:SIM.mode, prev_hash:"sha256:9c1e…a07b"
+  };
+  var h='<div class="stampbox">';
+  if (obs) h+='<span class="stamp obs">Observed<small>would be: '+esc(st[0])+'</small></span>';
+  else h+='<span class="stamp '+st[1]+'">'+esc(st[0])+'<small>'+esc(ACT[SIM.action].l)+'</small></span>';
+  h+='<div class="small" style="flex:1;min-width:200px"><b>Why:</b> '+esc(r.why)+(obs?' <br><b>Observe mode:</b> the action runs and the decision is logged, so the customer sees what enforcement would do before turning it on.':'')+'</div></div>';
+  h+='<div class="small"><b>Agent is told:</b> <code>'+esc(obs?"200":r.agentMsg)+'</code></div>';
+  h+='<div><div class="eyebrow" style="margin-bottom:4px">Deciding policy</div><pre class="code">'+esc(POL[r.p])+'</pre></div>';
+  h+='<div><div class="eyebrow" style="margin-bottom:4px">Entry log line</div><pre class="code">'+esc(JSON.stringify(entry,null,1).replace(/\n\s*/g," "))+'</pre></div>';
+  document.getElementById("sim-out").innerHTML=h;
+}
+document.querySelectorAll(".sim .seg").forEach(function(seg){ var k=seg.getAttribute("data-k"); seg.querySelectorAll("button").forEach(function(b){ b.addEventListener("click",function(){ SIM[k]=b.getAttribute("data-v"); renderSim(); }); }); });
+renderSim();
+})();
+</script>
+
+</html>
