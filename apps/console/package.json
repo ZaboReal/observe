@@ -1,0 +1,30 @@
+{
+  "name": "@observe/console",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Console for seeing which AI agents act inside a product, for whom, and what they do.",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @observe/sensor build && next dev --port 3100",
+    "build": "pnpm --filter @observe/sensor build && next build",
+    "start": "next start --port 3100",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@observe/sensor": "workspace:*",
+    "geist": "^1.7.2",
+    "lucide-react": "^1.52.0",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  }
+}

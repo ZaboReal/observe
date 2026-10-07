@@ -1,0 +1,25 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sensor-demo",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@observe/sensor",
+        "dev"
+      ],
+      "port": 5317
+    },
+    {
+      "name": "console",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@observe/console",
+        "dev"
+      ],
+      "port": 3100
+    }
+  ]
+}

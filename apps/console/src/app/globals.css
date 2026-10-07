@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+/* Monochrome: the data is the only loud thing. Agents are ink, people are a quiet grey. */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+
+  --color-canvas: #ffffff;
+  --color-wash: #fafafa;
+  --color-wash-2: #f4f4f4;
+  --color-line: #ededed;
+  --color-line-2: #e0e0e0;
+  --color-ink: #0a0a0a;
+  --color-ink-2: #4d4d4d;
+  --color-ink-3: #858585;
+  --color-ink-4: #b3b3b3;
+
+  --color-human: #d9d9d9;
+  --color-agent: #0a0a0a;
+  --color-unknown: #f2f2f2;
+}
+
+@layer base {
+  html {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-canvas);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-canvas);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Horizontal strips (tabs, mobile nav) scroll by swipe without a visible bar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* New rows in live tables settle in rather than popping. */
+@keyframes row-in {
+  from {
+    background-color: var(--color-wash-2);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.row-new {
+  animation: row-in 1.6s ease-out;
+}
+
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(10 10 10 / 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgb(10 10 10 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(10 10 10 / 0);
+  }
+}
+.live-dot {
+  animation: live-pulse 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-new,
+  .live-dot {
+    animation: none;
+  }
+}
