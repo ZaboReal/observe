@@ -201,9 +201,170 @@ async function selenium({ variant, headed }) {
   };
 }
 
-export const FRAMEWORKS = { playwright, puppeteer, selenium };
+// ───────────────────────── WebdriverIO ─────────────────────────
+
+async function webdriverio({ headed }) {
+  const { remote } = await import("webdriverio");
+  const browser = await remote({
+    logLevel: "error",
+    capabilities: {
+      browserName: "chrome",
+      "goog:chromeOptions": { binary: CHROME, args: [...(headed ? [] : ["--headless=new"]), "--window-size=1280,800"] },
+    },
+  });
+  return {
+    goto: (url) => browser.url(url),
+    eval: (fn) => browser.execute(fn),
+    waitFor: (fn) => browser.waitUntil(() => browser.execute(fn), { timeout: 15_000 }),
+    click: (sel) => browser.$(sel).click(),
+    type: (sel, text) => browser.$(sel).setValue(text),
+    select: (sel, label) => browser.$(sel).selectByVisibleText(label),
+    scrollTo: (sel) => browser.$(sel).scrollIntoView(),
+    close: () => browser.deleteSession(),
+  };
+}
+
+// ───────────────────────── Chrome DevTools MCP ─────────────────────────
+
+/** How an agent would find each demo control in the accessibility snapshot Chrome DevTools MCP returns. */
+const SNAPSHOT_TARGETS = {
+  "#q": /uid=(\S+) searchbox/,
+  "#status": /uid=(\S+) combobox[^\n]*value="All statuses"/,
+  "#export": /uid=(\S+) button "Export CSV"/,
+  "#email": /uid=(\S+) textbox "Invite a teammate"/,
+  '#invite button[type="submit"]': /uid=(\S+) button "Send invite"/,
+  "#weekly": /uid=(\S+) checkbox "Weekly summary"/,
+};
+
+async function devtoolsMcp({ headed }) {
+  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+  const { StdioClientTransport } = await import("@modelcontextprotocol/sdk/client/stdio.js");
+  const server = new URL("../node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js", import.meta.url).pathname;
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    // No usage statistics or CrUX lookups: test runs are not reported to Google.
+    args: [server, "--isolated", "--usageStatistics=false", "--performanceCrux=false", "--executablePath", CHROME, ...(headed ? [] : ["--headless"])],
+    env: { ...process.env, CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: "1" },
+    stderr: "ignore",
+  });
+  const client = new Client({ name: "observe-check", version: "0.1.0" });
+  await client.connect(transport);
+  const call = async (name, args = {}) => {
+    const r = await client.callTool({ name, arguments: args });
+    const text = r.content.map((c) => c.text ?? "").join("\n");
+    if (r.isError) throw new Error(`${name}: ${text.slice(0, 200)}`);
+    return text;
+  };
+  let pageId = null;
+  const uid = async (sel) => {
+    const snapshot = await call("take_snapshot", { pageId });
+    const m = snapshot.match(SNAPSHOT_TARGETS[sel]);
+    if (!m) throw new Error(`no ${sel} in the snapshot`);
+    return m[1];
+  };
+  const evaluate = async (fn) => {
+    const text = await call("evaluate_script", { pageId, function: fn.toString() });
+    const json = text.match(/```json\s*([\s\S]*?)```/);
+    try {
+      return json ? JSON.parse(json[1]) : undefined;
+    } catch {
+      return undefined; // e.g. a function that returns nothing
+    }
+  };
+  return {
+    goto: async (url) => {
+      const pages = await call("new_page", { url });
+      pageId = Number(pages.match(/(\d+): [^\n]*\[selected\]/)?.[1]);
+    },
+    eval: evaluate,
+    waitFor: async (fn) => {
+      for (let i = 0; i < 30 && !(await evaluate(fn)); i++) await sleep(500);
+    },
+    click: async (sel) => call("click", { pageId, uid: await uid(sel) }),
+    type: async (sel, text) => call("fill", { pageId, uid: await uid(sel), value: text }),
+    select: async (sel, label) => call("fill", { pageId, uid: await uid(sel), value: label }),
+    // Clicking scrolls the target into view, as an agent using these tools would rely on.
+    scrollTo: async () => {},
+    close: () => client.close(),
+  };
+}
+
+// ───────────────────────── Vercel agent-browser ─────────────────────────
+
+async function agentBrowser({ headed }) {
+  const { execFile } = await import("node:child_process");
+  const bin = new URL("../node_modules/.bin/agent-browser", import.meta.url).pathname;
+  const env = { ...process.env, AGENT_BROWSER_SESSION: `check-${process.pid}-${Math.random().toString(36).slice(2, 8)}`, AGENT_BROWSER_EXECUTABLE_PATH: CHROME };
+  const run = (...args) =>
+    new Promise((resolve, reject) =>
+      execFile(bin, [...(headed ? ["--headed"] : []), ...args], { env, timeout: 30_000 }, (err, stdout, stderr) =>
+        err ? reject(new Error(`agent-browser ${args[0]}: ${(stderr || err.message).trim().split("\n")[0]}`)) : resolve(stdout),
+      ),
+    );
+  const evaluate = async (fn) => JSON.parse(await run("--json", "eval", `(${fn.toString()})()`)).data?.result;
+  return {
+    goto: (url) => run("open", url),
+    eval: evaluate,
+    waitFor: async (fn) => {
+      for (let i = 0; i < 30 && !(await evaluate(fn)); i++) await sleep(500);
+    },
+    click: (sel) => run("click", sel),
+    type: (sel, text) => run("fill", sel, text),
+    select: (sel, label) => run("select", sel, label),
+    scrollTo: (sel) => run("scrollintoview", sel),
+    close: () => run("close"),
+  };
+}
+
+// ───────────────────────── nodriver (Python) ─────────────────────────
+
+/** nodriver is Python, so it runs the whole session in one script and prints the sensor's session id. */
+async function nodriver({ url, headed }) {
+  const { execFile } = await import("node:child_process");
+  const script = new URL("./nodriver_run.py", import.meta.url).pathname;
+  return new Promise((resolve, reject) =>
+    execFile(
+      "uv",
+      ["run", "--quiet", "--with", "nodriver", "python", script, url, headed ? "headed" : "headless"],
+      { env: { ...process.env, CHROME_PATH: CHROME }, timeout: 120_000 },
+      (err, stdout, stderr) => (err ? reject(new Error(`nodriver: ${(stderr || err.message).trim().split("\n").pop()}`)) : resolve(stdout.trim().split("\n").pop())),
+    ),
+  );
+}
+
+// ───────────────────────── Cypress ─────────────────────────
+
+/** Cypress runs the tasks as a spec (cypress/demo.cy.mjs) in system Chrome and writes the session id to a file. */
+async function cypress({ url, headed }) {
+  const { execFile } = await import("node:child_process");
+  const { mkdtempSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const out = `${mkdtempSync(`${tmpdir()}/observe-cypress-`)}/session.txt`;
+  const cwd = new URL("..", import.meta.url).pathname;
+  const bin = new URL("../node_modules/.bin/cypress", import.meta.url).pathname;
+  await new Promise((resolve, reject) =>
+    execFile(
+      bin,
+      ["run", "--browser", "chrome", ...(headed ? ["--headed"] : ["--headless"]), "--config-file", "cypress/cypress.config.mjs"],
+      // cypress.config.mjs exposes these to the spec; URLs with & and = are awkward on the command line.
+      { cwd, env: { ...process.env, OBSERVE_URL: url, OBSERVE_OUT: out, CYPRESS_CRASH_REPORTS: "0" }, timeout: 180_000 },
+      (err, stdout) => (err ? reject(new Error(`cypress: ${(stdout.match(/\d+\) .*|Error:.*$/m)?.[0] ?? err.message).trim()}`)) : resolve()),
+    ),
+  );
+  return readFileSync(out, "utf8").trim();
+}
+
+export const FRAMEWORKS = { playwright, puppeteer, selenium, webdriverio, "chrome-devtools-mcp": devtoolsMcp, "agent-browser": agentBrowser, nodriver, cypress };
+
+/** Frameworks that run a whole session themselves and return the sensor's session id. */
+export const WHOLE_RUN = new Set(["nodriver", "cypress"]);
 export const VARIANTS = ["default", "stealth", "human", "careful"];
-export const supports = (framework, variant) => !(framework === "selenium" && (variant === "human" || variant === "careful"));
+export function supports(framework, variant) {
+  if (framework === "playwright" || framework === "puppeteer") return true;
+  if (framework === "selenium") return variant === "default" || variant === "stealth";
+  // The other frameworks run as shipped: these runs check their markers.
+  return variant === "default";
+}
 
 /** The demo page's five tasks, with think time between steps for the human variant. */
 export async function runTasks(d, variant) {

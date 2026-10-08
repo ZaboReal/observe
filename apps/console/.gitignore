@@ -4,3 +4,5 @@ next-env.d.ts
 *.tsbuildinfo
 # The workspace lockfile lives at the repo root; this one only exists while the app is installed on its own.
 pnpm-lock.yaml
+# Saved test-run results (labelled sessions), see src/lib/results.ts.
+.data/

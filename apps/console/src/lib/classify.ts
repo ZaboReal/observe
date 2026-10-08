@@ -6,6 +6,7 @@ import { buildEvidence } from "./evidence";
 import { jevConfigured, systemOne } from "./jev";
 import { buildQuestions, parseAnswers, type Questions } from "./jev-questions";
 import { resolvePassport } from "./passport";
+import { saveResult } from "./results";
 import { store, type SensorRecord } from "./store";
 
 /**
@@ -75,6 +76,7 @@ export async function classifyIfDue(id: string): Promise<void> {
     status.at = Date.now();
     inFlight--;
     resolvePassport(rec);
+    void saveResult(rec);
   }
   // Evidence that arrived while Jev was answering gets its own pass.
   if (!status.error && fingerprint(rec) !== status.key) retry(id, MIN_INTERVAL_MS);

@@ -41,8 +41,47 @@ export async function report({ consoleUrl, since, runs = [], stamp = new Date().
   for (const r of runs) rows.push({ run: `${r.framework} · ${r.variant}`, label: r.label, s: r.sessionId ? byId.get(r.sessionId) : null, error: r.error });
   for (const s of sessions) if (s.label && !ids.includes(s.id)) rows.push({ run: `${s.label} · manual`, label: s.label, s, error: null });
 
+  // Per agent: how often the final verdict caught it, named it, and what decided.
+  const byLabel = new Map();
+  for (const { label, s } of rows) {
+    const g = byLabel.get(label) ?? { runs: 0, failed: 0, caught: 0, named: 0, own: 0, jevCaught: 0, jevNamed: 0, decidedBy: new Map(), markers: new Map() };
+    byLabel.set(label, g);
+    g.runs++;
+    if (!s) {
+      g.failed++;
+      continue;
+    }
+    const wantAgent = label !== "human";
+    if (wantAgent ? s.decision.verdict === "agent" : s.decision.verdict === "human") g.caught++;
+    if (wantAgent && s.decision.driverId === label) g.named++;
+    if (s.jev && (wantAgent ? s.jev.agentProbability >= 0.85 : s.jev.agentProbability <= 0.15)) g.jevCaught++;
+    if (wantAgent && s.jev?.choice === label) g.jevNamed++;
+    const by = s.decision.decidedBy ?? "—";
+    g.decidedBy.set(by, (g.decidedBy.get(by) ?? 0) + 1);
+    if (s.exactMatch) g.markers.set(s.exactMatch.label, (g.markers.get(s.exactMatch.label) ?? 0) + 1);
+    // Did a marker the registry lists for this very agent show up? Screen sizes are shared hints, not markers.
+    if ((s.signals ?? []).some((o) => o.id !== "env.agent-screen" && o.drivers.includes(label))) g.own++;
+  }
+  const counts = (m) => [...m.entries()].map(([k, n]) => `${k} ${n}`).join(", ") || "—";
+
   const lines = [
     `# Jev check · ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`,
+    "",
+    "## By agent",
+    "",
+    "| Agent | Runs | Caught | Named | Own marker seen | Jev caught | Jev named | Decided by | Exact match seen |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...[...byLabel.entries()].map(([label, g]) => {
+      const ran = g.runs - g.failed;
+      const named = label === "human" ? "—" : `${g.named}/${ran}`;
+      const jevNamed = label === "human" ? "—" : `${g.jevNamed}/${ran}`;
+      const own = label === "human" ? "—" : `${g.own}/${ran}`;
+      return `| ${label} | ${g.runs}${g.failed ? ` (${g.failed} failed)` : ""} | ${g.caught}/${ran} | ${named} | ${own} | ${g.jevCaught}/${ran} | ${jevNamed} | ${counts(g.decidedBy)} | ${counts(g.markers)} |`;
+    }),
+    "",
+    "**Caught** means the final verdict was right (agent for agents, person for `human`); **named** means it also named the right product; **own marker seen** means a marker the registry lists for that agent appeared on the page.",
+    "",
+    "## Every session",
     "",
     "Each row is one session on the sensor demo. **Final** is what the console shows; **Jev** is Jev's own answer even when an exact match decided.",
     "",

@@ -4,3 +4,9 @@ packages:
   - "tools/*"
 allowBuilds:
   esbuild: true
+  # tools/check: agent-browser ships its native binary in the package; the Edge and Firefox drivers are unused.
+  agent-browser: false
+  edgedriver: false
+  geckodriver: false
+  # Cypress's binary is installed with `pnpm --filter @observe/check exec cypress install`.
+  cypress: false

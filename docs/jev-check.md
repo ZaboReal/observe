@@ -33,11 +33,30 @@ To check it, `tools/check` drove Playwright, Puppeteer and Selenium through the 
 2. **Frameworks leave exact traces.** Puppeteer injects its own globals into the page even in stealth mode, and Selenium leaves ChromeDriver's. No judgement needed.
 3. **A careful enough script beats behaviour alone.** With whole-pixel positions and human-like timing, nine actions on one page left nothing physically impossible. Jev and the old hand-weighted rules were both fooled. This is the limit of watching behaviour: it raises the cost of hiding but does not make it impossible. It is why the product leans on signatures and on asking the person (passkey) for sensitive actions, and why "undecided" must never be treated as "a person".
 
+## Marker check: classic frameworks
+
+The registry lists markers for 48 agents, mostly read from each product's code; only a handful had been seen live. The second run tested every classic framework we can run here, as shipped, three times each (24 sessions).
+
+| Framework | Caught | Named | Own marker seen | What named it |
+| --- | --- | --- | --- | --- |
+| Selenium | 3/3 | 3/3 | 3/3 | ChromeDriver's `cdc_` globals |
+| Puppeteer | 3/3 | 3/3 | 3/3 | Puppeteer's injected globals |
+| nodriver | 3/3 | 3/3 | 3/3 | Its click marker and keyframes |
+| Cypress | 3/3 | 3/3 | 3/3 | `window.Cypress` |
+| Playwright | 3/3 | 3/3 | 0/3 | Jev, from click and typing mechanics (Playwright 1.53+ injects no globals) |
+| WebdriverIO | 3/3 | 0/3 | 0/3 | Called Puppeteer |
+| Vercel agent-browser | 3/3 | 0/3 | 0/3 | Called Puppeteer |
+| Chrome DevTools MCP | 3/3 | 0/3 | 0/3 | Called Puppeteer (it is built on Puppeteer) |
+
+- **Every session was caught,** by `navigator.webdriver` or the HeadlessChrome user agent, which fired in every headless run. That verifies Headless Chrome too: 9 of the 11 classic entries are now confirmed live. PhantomJS and Nightmare are abandoned and were not run.
+- **Three registry entries need new markers.** WebdriverIO's globals, agent-browser's recording cursor and Chrome DevTools MCP's `__dtmcp` only appear in special modes, so in normal use these tools are caught as automation but named after the library underneath.
+- **Edge case:** a person clicking inside a browser that automation launched (an agent handing over for a login, a test recorder) also shows these markers and counts as an agent. That is deliberate; see the check tool's README.
+
 ## What this does not show yet
 
 - **People.** No human sessions are in this run, so it says nothing yet about how often a real person would be wrongly flagged. That is the number that matters most.
-- **Consumer agents.** Claude in Chrome, Comet, ChatGPT/Codex, Gemini in Chrome and Edge Copilot need to be run by hand.
-- **Scale.** 20 scripted sessions on one page is a sanity check, not a benchmark.
+- **Consumer agents and AI frameworks.** Claude in Chrome, Comet, ChatGPT/Codex, Gemini in Chrome and the other consumer agents need to be run by hand; the 15 AI agent frameworks (browser-use, Skyvern, Magnitude and others) need an LLM API key.
+- **Scale.** 44 scripted sessions on one page is a sanity check, not a benchmark.
 
 ## Next
 

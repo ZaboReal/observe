@@ -2,6 +2,8 @@ import { after } from "next/server";
 
 import { classifyIfDue } from "@/lib/classify";
 import { ingest, parseBatch } from "@/lib/ingest";
+import { saveResult } from "@/lib/results";
+import { store } from "@/lib/store";
 
 /** Collector endpoint for `@observe/sensor`. Point the sensor's `endpoint` at `<console>/api`. */
 
@@ -28,8 +30,12 @@ export async function POST(req: Request) {
   const batch = parseBatch(body);
   if (!batch) return new Response("Not a sensor batch", { status: 422, headers: CORS });
   ingest(batch, Date.now());
-  // Ask Jev once the response has gone, so the sensor never waits on it.
-  after(() => classifyIfDue(batch.sessionId));
+  // Once the response has gone, so the sensor never waits: save labelled test runs, then ask Jev.
+  after(async () => {
+    const rec = store.sensor.get(batch.sessionId);
+    if (rec) await saveResult(rec);
+    await classifyIfDue(batch.sessionId);
+  });
   return new Response(null, { status: 204, headers: CORS });
 }
 
