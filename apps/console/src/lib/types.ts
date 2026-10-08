@@ -68,6 +68,9 @@ export interface User {
   accountId: string;
 }
 
+/** What settled a sensor session's verdict, strongest first. */
+export type DecidedBy = "signature" | "exact-match" | "jev" | "rules";
+
 export interface Session {
   id: string;
   userId: string;
@@ -93,6 +96,8 @@ export interface Session {
   device: string;
   /** Came in through the sensor rather than the demo generator. */
   source: "demo" | "sensor";
+  /** For sensor sessions: what decided the verdict. */
+  decidedBy?: DecidedBy;
   seed: number;
 }
 

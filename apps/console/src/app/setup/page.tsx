@@ -5,6 +5,7 @@ import { CodeBlock, CopyButton } from "@/components/code";
 import { LiveToggle } from "@/components/live";
 import { Card, CardHeader, LiveDot, Mono, Page, PageHeader } from "@/components/ui";
 import { ago, num } from "@/lib/format";
+import { jevConfig } from "@/lib/jev";
 import { SITE } from "@/lib/site";
 import { store } from "@/lib/store";
 
@@ -19,6 +20,13 @@ export default async function SetupPage() {
   const now = Date.now();
   const last = store.lastSensorEvent();
   const sensorSessions = store.sensor.size;
+  const jev = jevConfig();
+  let lastAnswer: number | null = null;
+  let lastError: { at: number; message: string } | null = null;
+  for (const r of store.sensor.values()) {
+    if (r.jev && r.jev.at > (lastAnswer ?? 0)) lastAnswer = r.jev.at;
+    if (r.jevStatus.error && r.jevStatus.at > (lastError?.at ?? 0)) lastError = { at: r.jevStatus.at, message: r.jevStatus.error };
+  }
 
   const npm = `import { init } from "@observe/sensor";
 
@@ -115,6 +123,29 @@ await fetch("/api/reports/export", {
           </Card>
 
           <Card>
+            <CardHeader title="Who-is-driving model" description="Jev decides who drives each sensor session" />
+            <div className="px-5 py-5 text-[13px]">
+              <div className="flex items-center gap-2 text-[14px] font-medium">
+                <LiveDot live={Boolean(jev.apiKey) && !(lastError && lastError.at > (lastAnswer ?? 0))} />
+                {jev.apiKey ? (lastAnswer ? "Answering" : "Connected, waiting for a session") : "Not configured"}
+              </div>
+              <p className="mt-1 text-ink-3">
+                {jev.apiKey ? (
+                  <>
+                    <Mono className="text-[12px]">{jev.model}</Mono>
+                    {lastAnswer ? ` · last answer ${ago(lastAnswer, now)}` : ""}
+                  </>
+                ) : (
+                  <>
+                    Add <Mono className="text-[12px]">TYPESAFE_API_KEY</Mono> to <Mono className="text-[12px]">apps/console/.env.local</Mono>. Until then the sensor&apos;s own rules decide.
+                  </>
+                )}
+              </p>
+              {lastError && lastError.at > (lastAnswer ?? 0) && <p className="mt-2 text-[12.5px] text-ink-2">Last error: {lastError.message}</p>}
+            </div>
+          </Card>
+
+          <Card>
             <CardHeader title="Keys" />
             <dl className="divide-y divide-line">
               {[
@@ -142,6 +173,10 @@ await fetch("/api/reports/export", {
               <li className="px-5 py-3">
                 <Mono className="text-[12px]">GET /api/v1/sessions</Mono>
                 <p className="mt-0.5 text-[12.5px] text-ink-3">Recent sessions with verdict, driver and last activity.</p>
+              </li>
+              <li className="px-5 py-3">
+                <Mono className="text-[12px]">GET /api/v1/sensor-sessions</Mono>
+                <p className="mt-0.5 text-[12.5px] text-ink-3">Sensor sessions with what decided each verdict and Jev&apos;s answer.</p>
               </li>
             </ul>
           </Card>

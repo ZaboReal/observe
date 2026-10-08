@@ -1,0 +1,16 @@
+{
+  "name": "@observe/check",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Drives automation frameworks through the sensor demo and reports what Jev decided for each session.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/run.mjs",
+    "report": "node src/report.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.63.0",
+    "puppeteer-core": "^25.12.0",
+    "selenium-webdriver": "^4.50.0"
+  }
+}

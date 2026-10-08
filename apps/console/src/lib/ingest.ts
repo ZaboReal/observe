@@ -1,8 +1,10 @@
 import "server-only";
 
 import { RULES, type RuleDef } from "@observe/sensor";
-import { ACTIONS, ensureDriver, registerUser } from "./catalog";
+import { ACTIONS, registerUser } from "./catalog";
+import { compactAction, type CompactAction } from "./evidence";
 import { MINUTE, summarise } from "./generate";
+import { resolvePassport } from "./passport";
 import { HISTORY, store, type SensorRecord } from "./store";
 import type { ActionDef, Robustness, Scope, SessionEvent, Tier, Verdict } from "./types";
 
@@ -23,6 +25,9 @@ const LIMITS = {
   pagesPerSession: 500,
   handoffsPerSession: 100,
   labelsPerSession: 200,
+  observationsPerSession: 60,
+  /** Recent actions kept for Jev. Older ones still count in `actionCount`. */
+  actionsPerSession: 200,
   id: 128,
   path: 300,
   label: 160,
@@ -45,8 +50,8 @@ interface Passport {
 type Rec =
   | { type: "identify"; t: number; userId: string | null; accountId: string | null }
   | { type: "passport"; t: number; passport: Passport }
-  | { type: "reason"; t: number; id: string; label: string; robustness?: Robustness; detail?: string }
-  | { type: "action"; t: number; kind: "click" | "typing" | "scroll" | "form"; index: number }
+  | { type: "reason"; t: number; key: string | null; id: string; label: string; robustness?: Robustness; detail?: string; decisive: boolean; drivers: string[] }
+  | { type: "action"; t: number; kind: "click" | "typing" | "scroll" | "form"; index: number; compact: CompactAction | null }
   | { type: "handoff"; t: number; actionIndex: number; from: Verdict; to: Verdict }
   | { type: "protect"; t: number; actionId: string; passport: Passport }
   | { type: "other"; t: number };
@@ -59,6 +64,8 @@ export interface Batch {
   page: string;
   userId: string | null;
   accountId: string | null;
+  /** Ground-truth driver label on test runs (`?observe_driver=`). */
+  label: string | null;
   records: Rec[];
 }
 
@@ -106,13 +113,23 @@ function parseRecord(v: unknown): Rec | null {
       const label = str(v.reason.label, LIMITS.label);
       if (!id || !label) return null;
       const robustness = ROBUSTNESS.has(v.reason.robustness as Robustness) ? (v.reason.robustness as Robustness) : undefined;
-      return { type: "reason", t: time(v.reason.t), id, label, robustness, detail: str(v.reason.detail, LIMITS.label) ?? undefined };
+      return {
+        type: "reason",
+        t: time(v.reason.t),
+        key: str(v.key, LIMITS.label),
+        id,
+        label,
+        robustness,
+        detail: str(v.reason.detail, LIMITS.label) ?? undefined,
+        decisive: v.reason.decisive === true,
+        drivers: driverIds(v.reason.drivers),
+      };
     }
     case "action": {
       if (!isObj(v.record) || !INPUTS.has(v.record.kind as never)) return null;
       const index = fin(v.record.index);
       if (index === null || index < 0) return null;
-      return { type: "action", t: time(v.record.t), kind: v.record.kind as "click", index: Math.floor(index) };
+      return { type: "action", t: time(v.record.t), kind: v.record.kind as "click", index: Math.floor(index), compact: compactAction(v.record, v.reasons) };
     }
     case "handoff": {
       const h = v.handoff;
@@ -132,6 +149,16 @@ function parseRecord(v: unknown): Rec | null {
     default:
       return null;
   }
+}
+
+/** `{ driverId: weight }` → driver ids, strongest first. */
+function driverIds(v: unknown): string[] {
+  if (!isObj(v)) return [];
+  return Object.entries(v)
+    .filter((e): e is [string, number] => e[0].length <= LIMITS.id && typeof e[1] === "number" && Number.isFinite(e[1]) && e[1] > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id]) => id);
 }
 
 /** Validate a raw body. Returns null when it is not a sensor batch at all; bad records inside are dropped. */
@@ -154,6 +181,7 @@ export function parseBatch(v: unknown): Batch | null {
     page: str(v.page, LIMITS.path) ?? "/",
     userId: str(identity.userId, LIMITS.id),
     accountId: str(identity.accountId, LIMITS.id),
+    label: str(v.label, LIMITS.id),
     records,
   };
 }
@@ -194,10 +222,19 @@ export function ingest(batch: Batch, now: number): void {
       handoffs: [],
       lastSeen: now,
       sdk: batch.sdk,
+      label: batch.label,
+      actions: [],
+      actionCount: 0,
+      actionKeys: new Set(),
+      observations: new Map(),
+      rules: null,
+      jev: null,
+      jevStatus: { inFlight: false, at: 0, key: "", error: null },
     };
     store.sensor.set(batch.sessionId, rec);
   }
   const s = rec.session;
+  if (batch.label) rec.label = batch.label;
   if (batch.userId) s.userId = batch.userId;
   if (batch.accountId) s.accountId = batch.accountId;
   registerUser(s.userId, null, s.accountId);
@@ -223,13 +260,25 @@ export function ingest(batch: Batch, now: number): void {
         if (rec.labels.size < LIMITS.labelsPerSession || rec.labels.has(r.id)) {
           rec.labels.set(r.id, { id: r.id, label: r.label, robustness: r.robustness, detail: r.detail });
         }
+        // Keyed reasons are page-level evidence (environment, overlays, globals); a later one with the same key replaces it.
+        if (r.key && (rec.observations.size < LIMITS.observationsPerSession || rec.observations.has(r.key))) {
+          rec.observations.set(r.key, { id: r.id, label: r.label, detail: r.detail, robustness: r.robustness, decisive: r.decisive, drivers: r.drivers });
+        }
         break;
       case "passport":
         applyPassport(rec, r.passport);
         break;
       case "action": {
+        const key = `${batch.pageId}:${r.index}`;
+        if (rec.actionKeys.has(key)) break;
+        rec.actionKeys.add(key);
+        rec.actionCount++;
+        if (r.compact) {
+          rec.actions.push(r.compact);
+          if (rec.actions.length > LIMITS.actionsPerSession) rec.actions.shift();
+        }
         const event: SessionEvent = { t: at(r.t), type: "input", input: r.kind, route: batch.page, driver: driverAt(rec, batch.pageId, r.index) };
-        if (push(rec, event)) rec.inputs.set(`${batch.pageId}:${r.index}`, event);
+        if (push(rec, event)) rec.inputs.set(key, event);
         break;
       }
       case "handoff":
@@ -242,6 +291,7 @@ export function ingest(batch: Batch, now: number): void {
     }
   }
 
+  resolvePassport(rec);
   Object.assign(s, summarise(rec.events));
   s.endedAt = now + IDLE;
   s.lastAt = s.startedAt + (rec.events[rec.events.length - 1]?.t ?? 0);
@@ -257,16 +307,11 @@ function push(rec: SensorRecord, e: SessionEvent): boolean {
   return true;
 }
 
+/** Keep the verdict the sensor's rules reached in the browser. `resolvePassport` decides what the session shows. */
 function applyPassport(rec: SensorRecord, p: Passport) {
-  const s = rec.session;
   // Each page load restarts the sensor at "unknown". That is a lack of evidence, not a new verdict, so keep what we know.
-  if (p.verdict === "unknown" && s.verdict !== "unknown") return;
-  // Events recorded before the sensor reached a verdict belong to whoever it settles on.
-  if (p.verdict !== "unknown") for (const e of rec.events) if (e.driver === "unknown") e.driver = p.verdict;
-  s.verdict = p.verdict;
-  s.tier = p.tier;
-  s.driverId = p.verdict === "agent" && p.driverId ? ensureDriver(p.driverId).id : null;
-  s.confidence = p.verdict === "agent" ? p.agentProbability : p.verdict === "human" ? 1 - p.agentProbability : 0.5;
+  if (p.verdict === "unknown" && rec.rules && rec.rules.verdict !== "unknown") return;
+  rec.rules = { verdict: p.verdict, tier: p.tier, agentProbability: p.agentProbability, driverId: p.verdict === "agent" ? p.driverId : null };
   rec.reasons = p.reasons.map(([id, weight]) => {
     const known = rec.labels.get(id);
     const rule = (RULES as Record<string, RuleDef>)[id];

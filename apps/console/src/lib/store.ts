@@ -1,7 +1,27 @@
 import "server-only";
 
+import type { CompactAction, Observation } from "./evidence";
 import { DAY, MINUTE, buildEvents, sessionsInMinute, summarise } from "./generate";
-import type { Reason, Session, SessionEvent } from "./types";
+import type { JevAnswer } from "./jev-questions";
+import type { Reason, Session, SessionEvent, Tier, Verdict } from "./types";
+
+/** The verdict the sensor's own rules reached in the browser. */
+export interface RulesPassport {
+  verdict: Verdict;
+  tier: Tier;
+  agentProbability: number;
+  driverId: string | null;
+}
+
+/** Jev's latest answer for a session. */
+export interface JevResult extends JevAnswer {
+  at: number;
+  model: string;
+  latencyMs: number;
+  inputTokens: number | null;
+  /** Actions the session had when Jev was asked. */
+  actionsSeen: number;
+}
 
 /** How far back the demo generator fills in history. */
 export const HISTORY = 7 * DAY;
@@ -21,6 +41,19 @@ export interface SensorRecord {
   handoffs: { pageId: string; actionIndex: number; to: Session["verdict"] }[];
   lastSeen: number;
   sdk: string | null;
+  /** Ground-truth label from `?observe_driver=` on test runs. */
+  label: string | null;
+  /** The most recent action records, compacted, for Jev. */
+  actions: CompactAction[];
+  /** Every action seen, including ones dropped from `actions`. */
+  actionCount: number;
+  /** `pageId:index` of every action stored, so a resent batch is not counted twice. */
+  actionKeys: Set<string>;
+  /** Page-level evidence by the sensor's reason key. */
+  observations: Map<string, Observation>;
+  rules: RulesPassport | null;
+  jev: JevResult | null;
+  jevStatus: { inFlight: boolean; at: number; key: string; error: string | null };
 }
 
 /**

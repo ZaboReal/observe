@@ -2,6 +2,7 @@ import "server-only";
 
 import { ACCOUNTS, SCOPES, UNNAMED_ID, allDrivers, getAccount, getDriver, getUser } from "./catalog";
 import { DAY, HOUR, MINUTE, reasonsFor } from "./generate";
+import { exactMatch } from "./passport";
 import { decide } from "./policy";
 import { HISTORY, store } from "./store";
 import type { ActionDef, Driver, EntryLogLine, Reason, Scope, Session, SessionEvent, Verdict } from "./types";
@@ -423,8 +424,23 @@ export function sessionDetail(id: string, now = Date.now()) {
     reasons,
     activity,
     decisions,
+    decision: sensorDecision(session.id),
     live: session.endedAt > now,
     now,
+  };
+}
+
+/** For sensor sessions: what decided the verdict, Jev's latest answer and what the in-browser rules said. */
+function sensorDecision(id: string) {
+  const rec = store.sensor.get(id);
+  if (!rec) return null;
+  return {
+    decidedBy: rec.session.decidedBy ?? null,
+    label: rec.label,
+    exact: exactMatch(rec),
+    jev: rec.jev ? { ...rec.jev, candidates: rec.jev.candidates.map((c) => ({ ...c, name: c.id === "human" ? "A person" : c.id === "unknown_automation" ? "Unknown automation" : (getDriver(c.id)?.name ?? c.id) })) } : null,
+    jevError: rec.jevStatus.error,
+    rules: rec.rules ? { ...rec.rules, driverName: getDriver(rec.rules.driverId)?.name ?? null } : null,
   };
 }
 

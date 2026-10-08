@@ -7,6 +7,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "dev:console": "pnpm --filter @observe/console dev",
-    "dev:sensor": "pnpm --filter @observe/sensor dev"
+    "dev:sensor": "pnpm --filter @observe/sensor dev",
+    "check": "pnpm --filter @observe/check start",
+    "check:report": "pnpm --filter @observe/check report"
   }
 }

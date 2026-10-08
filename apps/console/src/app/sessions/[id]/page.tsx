@@ -15,6 +15,8 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
+const DECIDED_BY = { signature: "Signature", "exact-match": "Exact match", jev: "Jev", rules: "Sensor rules" } as const;
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const d = sessionDetail((await params).id);
   return { title: d ? `${d.row.email} · Session` : "Session" };
@@ -28,7 +30,8 @@ export default async function SessionPage({ params }: Props) {
   const lastEvent = events[events.length - 1];
   const endAt = d.live ? now : s.startedAt + (lastEvent?.t ?? 0) + 20_000;
   const firstSensitive = d.decisions.find((x) => x.action.scope !== "view");
-  const source = s.source === "sensor" ? "Sensor" : s.tier === "verified" ? "Signature" : "Behaviour";
+  const source = s.decidedBy ? DECIDED_BY[s.decidedBy] : s.source === "sensor" ? "Sensor" : s.tier === "verified" ? "Signature" : "Behaviour";
+  const decision = d.decision;
 
   const moments = [
     { label: "Started", at: s.startedAt, note: { agent: "by an agent", human: "by a person", unknown: "driver not decided yet" }[events[0]?.driver ?? "unknown"] },
@@ -130,6 +133,46 @@ export default async function SessionPage({ params }: Props) {
               </div>
               <Meter value={s.verdict === "unknown" ? 0 : s.confidence} className="mt-2.5" />
             </div>
+            {decision && (
+              <div className="px-5 py-3 text-[12.5px]">
+                <dt className="text-ink-3">How it was decided</dt>
+                <dd className="mt-2 space-y-2">
+                  {decision.exact && <p>Exact match on the page: {decision.exact.label}</p>}
+                  {decision.jev ? (
+                    <div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span>Jev</span>
+                        <span className="tabular">{Math.round(decision.jev.agentProbability * 100)}% agent</span>
+                      </div>
+                      <ul className="mt-1.5 space-y-1">
+                        {decision.jev.candidates.slice(0, 3).map((c) => (
+                          <li key={c.id} className="flex justify-between gap-3 text-ink-2">
+                            <span className="truncate">{c.name}</span>
+                            <span className="tabular">{Math.round(c.p * 100)}%</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-1.5 text-[12px] text-ink-4">
+                        {decision.jev.model} · {decision.jev.latencyMs} ms · read {decision.jev.actionsSeen} actions
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-ink-3">{decision.jevError ? `Jev unavailable: ${decision.jevError}` : "Waiting for Jev"}</p>
+                  )}
+                  {decision.rules && (
+                    <p className="text-ink-3">
+                      Sensor rules said: {decision.rules.verdict}
+                      {decision.rules.driverName ? ` · ${decision.rules.driverName}` : ""}
+                    </p>
+                  )}
+                  {decision.label && (
+                    <p className="text-ink-4">
+                      Test label: <Mono>{decision.label}</Mono>
+                    </p>
+                  )}
+                </dd>
+              </div>
+            )}
           </dl>
           <div className="border-t border-line px-5 pt-4 pb-5">
             <div className="mb-3 flex items-baseline justify-between text-[12px] text-ink-3">

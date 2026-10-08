@@ -25,7 +25,7 @@
   th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .tasks { font-size: 14px; color: var(--muted); }
   .tasks code { background: #EEF1F5; padding: 1px 5px; border-radius: 4px; color: var(--ink); }
-  #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; max-width: 90vw; }
+  #toast { pointer-events: none; position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; max-width: 90vw; }
   .spacer { height: 900px; }
 </style>
 </head>
@@ -44,7 +44,7 @@
       <li>Invite <code>sam@example.com</code> as a teammate.</li>
       <li>Scroll to Settings and turn on <code>Weekly summary</code>.</li>
     </ol>
-    Label the run with <code>?observe_driver=claude-in-chrome</code> (or <code>human</code>, <code>comet</code>, …). The debug panel's <b>copy</b> button copies the session JSON.
+    Label the run with <code>?observe_driver=claude-in-chrome</code> (or <code>human</code>, <code>comet</code>, …). Add <code>&amp;observe_endpoint=http://localhost:3100/api</code> to send it to the console, where Jev decides who drove. The debug panel's <b>copy</b> button copies the session JSON.
   </section>
 
   <section class="card">
@@ -81,7 +81,21 @@
 </main>
 <div id="toast" hidden></div>
 
-<script src="/dist/observe-sensor.js" data-debug data-capture="lab"></script>
+<script>
+  // Load the sensor. ?observe_endpoint=http://localhost:3100/api sends sessions to a collector such as the console;
+  // ?observe_debug=0 hides the debug panel. The production sensor never reads its endpoint from the URL.
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var s = document.createElement("script");
+    s.src = "/dist/observe-sensor.js";
+    s.async = false;
+    s.dataset.capture = "lab";
+    s.dataset.auto = "";
+    if (params.get("observe_debug") !== "0") s.dataset.debug = "";
+    if (params.get("observe_endpoint")) s.dataset.endpoint = params.get("observe_endpoint");
+    document.head.appendChild(s);
+  })();
+</script>
 <script>
   const invoices = [
     ["INV-2041", "Northwind Traders", "$4,120.00", "Paid"], ["INV-2040", "Contoso Ltd", "$980.50", "Due"],
