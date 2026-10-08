@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2040%2040%27%3E%3Cpath%20d%3D%27M21.63%2023.78L22.72%2013.44L22.87%2012.95L23.20%2012.56L23.64%2012.32L24.15%2012.28L24.63%2012.43L25.02%2012.75L25.26%2013.20L25.31%2013.71L24.74%2019.08L25.72%209.73L25.89%209.21L26.24%208.79L26.72%208.53L27.26%208.48L27.78%208.65L28.20%208.99L28.46%209.48L28.51%2010.02L27.55%2019.17L28.70%208.23L28.86%207.71L29.21%207.29L29.69%207.04L30.24%206.99L30.76%207.15L31.18%207.50L31.43%207.98L31.48%208.52L30.33%2019.46L31.34%209.92L31.50%209.40L31.85%208.98L32.33%208.72L32.87%208.67L33.40%208.83L33.82%209.18L34.07%209.67L34.12%2010.21L32.83%2022.44L37.03%2016.95L37.42%2016.62L37.90%2016.47L38.41%2016.51L38.86%2016.74L39.19%2017.13L39.35%2017.61L39.31%2018.12L39.07%2018.57L34.19%2028.72L33.02%2034.03L21.89%2032.85L18.11%2032.85L6.98%2034.03L5.81%2028.72L0.93%2018.57L0.69%2018.12L0.65%2017.61L0.81%2017.13L1.14%2016.74L1.59%2016.51L2.10%2016.47L2.58%2016.62L2.97%2016.95L7.17%2022.44L5.88%2010.21L5.93%209.67L6.18%209.18L6.60%208.83L7.13%208.67L7.67%208.72L8.15%208.98L8.50%209.40L8.66%209.92L9.67%2019.46L8.52%208.52L8.57%207.98L8.82%207.50L9.24%207.15L9.76%206.99L10.31%207.04L10.79%207.29L11.14%207.71L11.30%208.23L12.45%2019.17L11.49%2010.02L11.54%209.48L11.80%208.99L12.22%208.65L12.74%208.48L13.28%208.53L13.76%208.79L14.11%209.21L14.28%209.73L15.26%2019.08L14.69%2013.71L14.74%2013.20L14.98%2012.75L15.37%2012.43L15.85%2012.28L16.36%2012.32L16.80%2012.56L17.13%2012.95L17.28%2013.44L18.37%2023.78Z%27%20fill%3D%27none%27%20stroke%3D%27%23101215%27%20stroke-width%3D%272.6%27%20stroke-linejoin%3D%27round%27%2F%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='22%206%2056%2086'%3E%3Ccircle%20cx='50'%20cy='49'%20r='42'%20fill='%23070708'/%3E%3Cpath%20d='M37.5%2016.0L37.9%2014.4L39.3%2013.4L60.7%2013.4L62.1%2014.4L62.5%2016.0M40.0%2016.4L48.5%2016.4M37.5%2016.0L35.2%2022.8L41.5%2036.7L47.8%2028.4L37.5%2016.0M62.5%2016.0L64.8%2022.8L58.5%2036.7L52.2%2028.4L62.5%2016.0M47.8%2028.4L52.2%2028.4L52.6%2035.6L47.4%2035.6L47.8%2028.4M47.4%2035.6L43.3%2079.0L50.0%2086.7L56.7%2079.0L52.6%2035.6'%20fill='none'%20stroke='%23fff1dc'%20stroke-width='2.8'%20stroke-linejoin='round'%20stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
@@ -17,38 +17,40 @@
 <header class="nav" id="nav">
   <a class="logo" href="#top" aria-label="Home"><span data-logo></span></a>
 
-  <div class="bar">
+  <nav class="bar" aria-label="Sections">
     <button class="bar-menu" id="menu-toggle" aria-expanded="false" aria-controls="menu-panel"><span class="burger" aria-hidden="true"></span><span class="bar-menu-label">Menu</span></button>
-    <nav class="bar-links" aria-label="Sections">
+    <div class="bar-links">
       <a href="#how">How it works</a>
       <a href="#control">Control</a>
       <a href="#seats">Seats</a>
       <a href="#teams">Teams</a>
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
-    </nav>
-    <a class="btn btn-dark bar-cta" href="#access">Request access</a>
+    </div>
+  </nav>
 
-    <div class="menu-panel" id="menu-panel" aria-hidden="true">
-      <div class="menu-cols">
-        <div>
-          <small>Product</small>
-          <a class="big" href="#how" tabindex="-1">How it works</a>
-          <a class="big" href="#control" tabindex="-1">Control</a>
-          <a class="big" href="#seats" tabindex="-1">Seats</a>
-          <a class="big" href="#pricing" tabindex="-1">Pricing</a>
-        </div>
-        <div>
-          <small>Teams</small>
-          <a class="small" href="#teams" tabindex="-1">Security</a>
-          <a class="small" href="#teams" tabindex="-1">Product</a>
-          <a class="small" href="#teams" tabindex="-1">Pricing &amp; RevOps</a>
-          <small class="gap">Help</small>
-          <a class="small" href="#faq" tabindex="-1">FAQ</a>
-          <a class="small" href="#access" tabindex="-1">Contact</a>
-        </div>
+  <a class="btn btn-dark nav-cta" href="#access">Request access</a>
+
+  <div class="menu-panel" id="menu-panel" aria-hidden="true">
+    <div class="menu-cols">
+      <div>
+        <small>Product</small>
+        <a class="big" href="#how" tabindex="-1">How it works</a>
+        <a class="big" href="#control" tabindex="-1">Control</a>
+        <a class="big" href="#seats" tabindex="-1">Seats</a>
+        <a class="big" href="#pricing" tabindex="-1">Pricing</a>
+      </div>
+      <div>
+        <small>Teams</small>
+        <a class="small" href="#teams" tabindex="-1">Security</a>
+        <a class="small" href="#teams" tabindex="-1">Product</a>
+        <a class="small" href="#teams" tabindex="-1">Pricing &amp; RevOps</a>
+        <small class="gap">Help</small>
+        <a class="small" href="#faq" tabindex="-1">FAQ</a>
+        <a class="small" href="#access" tabindex="-1">Contact</a>
       </div>
     </div>
+    <a class="btn btn-dark btn-block menu-cta" href="#access" tabindex="-1">Request access</a>
   </div>
 </header>
 

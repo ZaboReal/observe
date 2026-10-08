@@ -44,25 +44,27 @@ em { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spa
 .btn-xs { height: 28px; padding: 0 12px; font-size: 12.5px; }
 .btn-block { width: 100%; height: 48px; }
 
-/* ───── Nav: the logo on its own, then one long rounded bar. Slides away on scroll down. ───── */
-.nav { position: fixed; top: 0; left: 0; right: 0; z-index: 60; display: flex; align-items: center; gap: 12px; padding: 14px 40px; pointer-events: none; transition: transform 0.5s var(--ease), opacity 0.35s ease; }
+/* ───── Nav: three pieces. The logo on the left, a centred bar of links, the call to action on the right. ───── */
+.nav { position: fixed; top: 0; left: 0; right: 0; z-index: 60; display: flex; align-items: center; justify-content: space-between; padding: 14px 40px; pointer-events: none; transition: transform 0.5s var(--ease), opacity 0.35s ease; }
 .nav > * { pointer-events: auto; }
 .nav.hidden { transform: translateY(-120%); opacity: 0; }
-.logo { flex: none; display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--sheet); box-shadow: var(--shadow), 0 0 0 1px var(--line); }
-.bar { position: relative; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 58px; padding: 0 8px 0 18px; border-radius: 999px; background: rgba(255, 255, 255, 0.86); box-shadow: var(--shadow), 0 0 0 1px var(--line); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); }
+.logo { flex: none; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; background: #070708; box-shadow: var(--shadow), 0 0 0 1px rgba(16, 18, 21, 0.3); overflow: hidden; }
+.logo.static { width: 76px; height: 76px; }
+.mark { display: block; width: 100%; height: 100%; filter: drop-shadow(0 0 1.2px rgba(255, 236, 212, 0.55)); }
+.bar { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; height: 58px; padding: 0 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.86); box-shadow: var(--shadow), 0 0 0 1px var(--line); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); }
 .bar-links { display: flex; gap: 2px; }
-.bar-links a { padding: 9px 15px; border-radius: 999px; font-size: 15px; color: var(--ink-2); transition: background 0.15s ease, color 0.15s ease; }
+.bar-links a { padding: 9px 18px; border-radius: 999px; font-size: 15px; color: var(--ink-2); white-space: nowrap; transition: background 0.15s ease, color 0.15s ease; }
 .bar-links a:hover { background: rgba(16, 18, 21, 0.05); color: var(--ink); }
-.bar-cta { height: 42px; }
-.bar-menu { display: none; align-items: center; gap: 10px; height: 42px; padding: 0 10px; border: 0; background: transparent; font: 500 15px var(--sans); color: var(--ink); cursor: pointer; }
+.nav-cta { height: 46px; }
+.bar-menu { display: none; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border: 0; background: transparent; font: 500 15px var(--sans); color: var(--ink); cursor: pointer; }
 .burger { position: relative; width: 16px; height: 10px; }
 .burger::before, .burger::after { content: ""; position: absolute; left: 0; right: 0; height: 1.6px; border-radius: 2px; background: currentColor; transition: transform 0.35s var(--ease), top 0.35s var(--ease); }
 .burger::before { top: 0; }
 .burger::after { top: 8.4px; }
 .menu-open .burger::before { top: 4.2px; transform: rotate(45deg); }
 .menu-open .burger::after { top: 4.2px; transform: rotate(-45deg); }
-/* Phones: the bar opens downward into a panel of links. */
-.menu-panel { position: absolute; top: calc(100% + 10px); left: -62px; right: 0; padding: 22px 22px 26px; border-radius: 28px; background: #fff; box-shadow: var(--shadow-lg), 0 0 0 1px var(--line); transform-origin: top center; transform: scale(0.96) translateY(-8px); opacity: 0; visibility: hidden; transition: transform 0.4s var(--ease), opacity 0.2s ease, visibility 0s linear 0.4s; }
+/* Phones: the bar becomes a Menu button that opens a panel of links. */
+.menu-panel { position: absolute; top: calc(100% - 2px); left: 16px; right: 16px; padding: 22px 22px 24px; border-radius: 28px; background: #fff; box-shadow: var(--shadow-lg), 0 0 0 1px var(--line); transform-origin: top center; transform: scale(0.96) translateY(-8px); opacity: 0; visibility: hidden; transition: transform 0.4s var(--ease), opacity 0.2s ease, visibility 0s linear 0.4s; }
 .menu-open .menu-panel { transform: none; opacity: 1; visibility: visible; transition: transform 0.45s var(--ease), opacity 0.2s ease, visibility 0s; }
 .menu-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .menu-cols small { display: block; margin-bottom: 12px; font: 500 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
@@ -70,28 +72,7 @@ em { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spa
 .menu-cols .big { display: block; padding: 3px 0; font-size: 26px; font-weight: 500; letter-spacing: -0.02em; }
 .menu-cols .small { display: block; padding: 4px 0; font-size: 15px; color: var(--ink-2); }
 .menu-cols a:hover { color: var(--green); }
-
-/* ───── Logo: two hands raised in dua, with lights running round the outline like a train on a line map ───── */
-.mark { display: block; width: 38px; height: 38px; overflow: visible; }
-.mark path { fill: none; stroke-linejoin: round; stroke-linecap: round; }
-.mark .h-base path { stroke: var(--ink); stroke-width: 1.45; }
-.mark .h-r, .mark .h-c { opacity: 0; mix-blend-mode: multiply; }
-.mark .h-r path { stroke: #ff2f6e; stroke-width: 1.45; }
-.mark .h-c path { stroke: #13b8ff; stroke-width: 1.45; }
-.mark .light { stroke-width: 2.6; stroke-dasharray: 4.5 95.5; animation: run 8s steps(120) infinite; }
-.mark .l1 { stroke: #22d39a; }
-.mark .l2 { stroke: #8af0cc; stroke-width: 2.2; stroke-dasharray: 2.5 97.5; animation-delay: -4s; }
-@keyframes run { to { stroke-dashoffset: -100; } }
-.logo:hover .mark .light { animation-duration: 3s; }
-/* Glitch bursts: the outline splits into red and cyan, slices shift, and the lights skip. */
-.glitch .mark .h-r { opacity: 0.95; animation: glitch-r 0.36s steps(1) both; }
-.glitch .mark .h-c { opacity: 0.95; animation: glitch-c 0.36s steps(1) both; }
-.glitch .mark .h-base { animation: glitch-b 0.36s steps(1) both; }
-.glitch .mark .h-lights { animation: glitch-l 0.36s steps(1) both; }
-@keyframes glitch-r { 0% { transform: translate(1.6px, -0.4px); clip-path: inset(8% 0 62% 0); } 25% { transform: translate(-1.2px, 0.5px); clip-path: inset(52% 0 22% 0); } 50% { transform: translate(2px, 0); clip-path: inset(28% 0 44% 0); } 75% { transform: translate(0.8px, -0.6px); clip-path: inset(70% 0 6% 0); } 100% { transform: none; clip-path: inset(0); } }
-@keyframes glitch-c { 0% { transform: translate(-1.6px, 0.4px); clip-path: inset(40% 0 30% 0); } 25% { transform: translate(1.4px, 0); clip-path: inset(12% 0 70% 0); } 50% { transform: translate(-2px, 0.4px); clip-path: inset(62% 0 14% 0); } 75% { transform: translate(-0.6px, 0); clip-path: inset(22% 0 50% 0); } 100% { transform: none; clip-path: inset(0); } }
-@keyframes glitch-b { 0% { transform: translate(0.7px, 0); } 25% { transform: translate(-0.9px, 0); } 50% { transform: translate(0, 0.5px); } 75% { transform: translate(0.5px, -0.3px); } 100% { transform: none; } }
-@keyframes glitch-l { 0% { opacity: 0.2; transform: translate(-1px, 0); } 25% { opacity: 1; transform: translate(1.4px, 0); } 50% { opacity: 0.4; } 75% { opacity: 1; transform: translate(-0.8px, 0.4px); } 100% { opacity: 1; transform: none; } }
+.menu-cta { display: none; margin-top: 22px; }
 
 /* ───── Layout ───── */
 section { position: relative; max-width: 1200px; margin: 0 auto; padding: 0 40px; }
@@ -364,7 +345,6 @@ h2 em { font-size: 1.08em; }
   html { scroll-behavior: auto; }
   .rise, .live { animation: none; }
   .nav, .menu-panel, .detail, .toast { transition: none; }
-  .mark .light { animation: none; stroke-dashoffset: -30; }
 }
 
 /* ───── Smaller screens: no pinning, simpler layouts ───── */
@@ -376,12 +356,12 @@ h2 em { font-size: 1.08em; }
 }
 @media (max-width: 960px) {
   section, .footer { padding-left: 20px; padding-right: 20px; }
-  .nav { padding: 12px 16px; gap: 10px; }
-  .logo { width: 52px; height: 52px; }
-  .bar { height: 52px; padding: 0 6px 0 10px; }
+  .nav { padding: 12px 16px; }
+  .logo { width: 54px; height: 54px; }
+  .bar { top: 14px; height: 50px; padding: 0 4px; }
   .bar-links { display: none; }
   .bar-menu { display: inline-flex; }
-  .bar-cta { height: 40px; padding: 0 16px; }
+  .nav-cta { height: 42px; padding: 0 18px; }
   .window, .rules { grid-template-columns: 1fr; }
   .window-side, .rules-side, .search { display: none; }
   .sessions th:nth-child(n + 3), .sessions td:nth-child(n + 3) { display: none; }
@@ -394,7 +374,8 @@ h2 em { font-size: 1.08em; }
   .access { flex-direction: column; align-items: center; }
 }
 @media (max-width: 560px) {
-  .bar-cta { font-size: 13.5px; padding: 0 14px; }
+  .nav-cta { display: none; }
+  .menu-cta { display: flex; }
   .details { grid-template-columns: 1fr; }
   .menu-cols { grid-template-columns: 1fr; }
   .footer-bottom { flex-direction: column; gap: 6px; }
