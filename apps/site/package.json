@@ -1,0 +1,10 @@
+{
+  "name": "@observe/site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Marketing homepage for Agent Passport Control. Static: HTML, CSS and a little JavaScript.",
+  "type": "module",
+  "scripts": {
+    "dev": "node serve.mjs"
+  }
+}

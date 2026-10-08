@@ -9,6 +9,7 @@
     "dev:console": "pnpm --filter @observe/console dev",
     "dev:sensor": "pnpm --filter @observe/sensor dev",
     "check": "pnpm --filter @observe/check start",
-    "check:report": "pnpm --filter @observe/check report"
+    "check:report": "pnpm --filter @observe/check report",
+    "dev:site": "pnpm --filter @observe/site dev"
   }
 }

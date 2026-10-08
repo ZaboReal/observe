@@ -6,6 +6,7 @@ Agent Passport Control: deciding which AI agents may act inside logged-in SaaS p
 
 - [packages/sensor](packages/sensor): browser SDK that detects AI agents driving a session, names the product (70-agent registry), and returns a passport at sensitive actions.
 - [apps/console](apps/console): web console where a SaaS team sees which agents act in its product, for whom and what they do: overview, live sessions with the takeover marked, agents, accounts, an entry log with policy decisions, and setup. Ingests the sensor's batches at `POST /api/v1/sdk/events` and asks [Jev](apps/console/README.md#who-is-driving-jev) who is driving each session.
+- [apps/site](apps/site): marketing homepage (static HTML, CSS and a little JavaScript): verify, record, permit; the visa example; seats; plans; FAQ. `pnpm dev:site` serves it at http://localhost:3200.
 - [tools/check](tools/check): drives Playwright, Puppeteer and Selenium through the sensor demo and reports what Jev decided for each session, plus a guide for manual runs with consumer agents and people.
 - [data/server-agents.json](data/server-agents.json): server-side agent user agents, IP-range lists and Web Bot Auth key directories, for the coming server module.
 
