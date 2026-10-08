@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { LogoMark } from "@/components/logo";
 import { authEnabled } from "@/lib/auth";
-import { SITE } from "@/lib/site";
+import { DEFAULT_SITE as SITE } from "@/lib/site";
 
 import { LoginForm } from "./form";
 

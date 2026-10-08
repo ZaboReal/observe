@@ -70,6 +70,3 @@ export function siteForKey(key: unknown): Site | undefined {
   if (known) return known;
   return env.NODE_ENV === "production" ? undefined : SITES.find((s) => s.demo);
 }
-
-/** @deprecated The console shows one site at a time; read the request's site with `currentSite()`. */
-export const SITE = DEFAULT_SITE;
