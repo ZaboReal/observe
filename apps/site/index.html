@@ -9,20 +9,27 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M3 16c3.4-5.8 7.8-8.7 13-8.7S25.6 10.2 29 16c-3.4 5.8-7.8 8.7-13 8.7S6.4 21.8 3 16Z' fill='none' stroke='%23101215' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='16' r='4.2' fill='%23101215'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2040%2040%27%3E%3Cpath%20d%3D%27M21.63%2023.78L22.72%2013.44L22.87%2012.95L23.20%2012.56L23.64%2012.32L24.15%2012.28L24.63%2012.43L25.02%2012.75L25.26%2013.20L25.31%2013.71L24.74%2019.08L25.72%209.73L25.89%209.21L26.24%208.79L26.72%208.53L27.26%208.48L27.78%208.65L28.20%208.99L28.46%209.48L28.51%2010.02L27.55%2019.17L28.70%208.23L28.86%207.71L29.21%207.29L29.69%207.04L30.24%206.99L30.76%207.15L31.18%207.50L31.43%207.98L31.48%208.52L30.33%2019.46L31.34%209.92L31.50%209.40L31.85%208.98L32.33%208.72L32.87%208.67L33.40%208.83L33.82%209.18L34.07%209.67L34.12%2010.21L32.83%2022.44L37.03%2016.95L37.42%2016.62L37.90%2016.47L38.41%2016.51L38.86%2016.74L39.19%2017.13L39.35%2017.61L39.31%2018.12L39.07%2018.57L34.19%2028.72L33.02%2034.03L21.89%2032.85L18.11%2032.85L6.98%2034.03L5.81%2028.72L0.93%2018.57L0.69%2018.12L0.65%2017.61L0.81%2017.13L1.14%2016.74L1.59%2016.51L2.10%2016.47L2.58%2016.62L2.97%2016.95L7.17%2022.44L5.88%2010.21L5.93%209.67L6.18%209.18L6.60%208.83L7.13%208.67L7.67%208.72L8.15%208.98L8.50%209.40L8.66%209.92L9.67%2019.46L8.52%208.52L8.57%207.98L8.82%207.50L9.24%207.15L9.76%206.99L10.31%207.04L10.79%207.29L11.14%207.71L11.30%208.23L12.45%2019.17L11.49%2010.02L11.54%209.48L11.80%208.99L12.22%208.65L12.74%208.48L13.28%208.53L13.76%208.79L14.11%209.21L14.28%209.73L15.26%2019.08L14.69%2013.71L14.74%2013.20L14.98%2012.75L15.37%2012.43L15.85%2012.28L16.36%2012.32L16.80%2012.56L17.13%2012.95L17.28%2013.44L18.37%2023.78Z%27%20fill%3D%27none%27%20stroke%3D%27%23101215%27%20stroke-width%3D%272.6%27%20stroke-linejoin%3D%27round%27%2F%3E%3C%2Fsvg%3E">
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
 
 <header class="nav" id="nav">
-  <a class="logo" href="#top" aria-label="Observe home">
-    <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><path d="M3 16c3.4-5.8 7.8-8.7 13-8.7S25.6 10.2 29 16c-3.4 5.8-7.8 8.7-13 8.7S6.4 21.8 3 16Z" fill="none" stroke="#101215" stroke-width="2.4"/><circle cx="16" cy="16" r="4.2" fill="#101215"/></svg>
-  </a>
+  <a class="logo" href="#top" aria-label="Home"><span data-logo></span></a>
 
-  <div class="menu-wrap">
-    <button class="menu-pill" id="menu-toggle" aria-expanded="false" aria-controls="menu-panel"><span class="burger" aria-hidden="true"></span>Menu</button>
+  <div class="bar">
+    <button class="bar-menu" id="menu-toggle" aria-expanded="false" aria-controls="menu-panel"><span class="burger" aria-hidden="true"></span><span class="bar-menu-label">Menu</span></button>
+    <nav class="bar-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#control">Control</a>
+      <a href="#seats">Seats</a>
+      <a href="#teams">Teams</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-dark bar-cta" href="#access">Request access</a>
+
     <div class="menu-panel" id="menu-panel" aria-hidden="true">
-      <button class="menu-close" id="menu-close" tabindex="-1"><span class="x" aria-hidden="true"></span>Close</button>
       <div class="menu-cols">
         <div>
           <small>Product</small>
@@ -43,8 +50,6 @@
       </div>
     </div>
   </div>
-
-  <a class="btn btn-dark nav-cta" href="#access">Request access</a>
 </header>
 
 <main id="main">
@@ -358,7 +363,7 @@
 <footer class="footer">
   <div class="footer-top">
     <div class="footer-brand">
-      <span class="logo static" aria-hidden="true"><svg viewBox="0 0 32 32" width="24" height="24"><path d="M3 16c3.4-5.8 7.8-8.7 13-8.7S25.6 10.2 29 16c-3.4 5.8-7.8 8.7-13 8.7S6.4 21.8 3 16Z" fill="none" stroke="#101215" stroke-width="2.4"/><circle cx="16" cy="16" r="4.2" fill="#101215"/></svg></span>
+      <span class="logo static" aria-hidden="true"><span data-logo></span></span>
       <p>Know which AI agents use your product, and what they're allowed to do.</p>
       <a class="btn btn-dark" href="#access">Request access</a>
     </div>
