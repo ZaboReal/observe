@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { chooseSite } from "@/app/actions";
@@ -45,15 +46,6 @@ export function SiteMenu({ sites, current }: { sites: SiteChoice[]; current: Sit
     if (id !== current.id) start(() => chooseSite(id, pathname));
   };
 
-  // One site: nothing to choose, so just name it.
-  if (sites.length < 2) {
-    return (
-      <div className="px-2.5">
-        <div className="eyebrow truncate">{current.name}</div>
-        <div className="mt-0.5 truncate font-mono text-[11.5px] text-ink-3">{current.host}</div>
-      </div>
-    );
-  }
 
   return (
     <div ref={root} className="relative">
@@ -87,6 +79,12 @@ export function SiteMenu({ sites, current }: { sites: SiteChoice[]; current: Sit
               </button>
             </li>
           ))}
+          <li className="mt-1 border-t border-line pt-1">
+            <Link href="/sites/new" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[10px] px-2.5 py-2 text-[13px] text-ink-2 transition-colors hover:bg-ink/[0.04] hover:text-ink">
+              <span aria-hidden="true" className="grid size-4 place-items-center rounded-full shadow-ring text-[12px] leading-none">+</span>
+              Add a site
+            </Link>
+          </li>
         </ul>
       )}
     </div>

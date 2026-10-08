@@ -3,7 +3,7 @@ import "server-only";
 import type { CompactAction, Observation } from "./evidence";
 import { DAY, MINUTE, buildEvents, sessionsInMinute, summarise } from "./generate";
 import type { JevAnswer } from "./jev-questions";
-import { DEFAULT_SITE, siteById } from "./site";
+import { defaultSite, siteById } from "./site";
 import type { Reason, Session, SessionEvent, Tier, Verdict } from "./types";
 
 /** The verdict the sensor's own rules reached in the browser. */
@@ -91,7 +91,7 @@ class Store {
   }
 
   /** One site's sessions that started in [from, to], as they stand at `now`. Oldest first. */
-  sessions(from: number, to: number, now: number, siteId: string = DEFAULT_SITE.id): Session[] {
+  sessions(from: number, to: number, now: number, siteId: string = defaultSite().id): Session[] {
     this.evict(now);
     const out: Session[] = [];
     const end = Math.min(to, now);
@@ -109,7 +109,7 @@ class Store {
   }
 
   /** A session of this site by id. */
-  session(id: string, now: number, siteId: string = DEFAULT_SITE.id): Session | undefined {
+  session(id: string, now: number, siteId: string = defaultSite().id): Session | undefined {
     const sensor = this.sensor.get(id);
     if (sensor) return sensor.site === siteId ? sensor.session : undefined;
     if (!siteById(siteId)?.demo) return undefined;
@@ -131,7 +131,7 @@ class Store {
   }
 
   /** The most recent time the sensor sent anything for a site, for the setup page. */
-  lastSensorEvent(siteId: string = DEFAULT_SITE.id): number | null {
+  lastSensorEvent(siteId: string = defaultSite().id): number | null {
     let last: number | null = null;
     for (const r of this.sensor.values()) if (r.site === siteId) last = Math.max(last ?? 0, r.lastSeen);
     return last;

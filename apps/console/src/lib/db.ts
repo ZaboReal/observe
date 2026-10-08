@@ -31,10 +31,13 @@ export interface BatchMeta {
   country?: string;
   /** `Signature-Agent` header: the agent says it signs its requests (Web Bot Auth). Not verified here. */
   signatureAgent?: string;
+  /** Set only by /api/v1/decide: the batch holds decisions the site's own server asked for, not sensor data. */
+  server?: true;
 }
 
 export interface StoredBatch {
   id: number;
+  site: string;
   session_id: string;
   received_at: number;
   meta: BatchMeta;
@@ -42,10 +45,21 @@ export interface StoredBatch {
 }
 
 export interface StoredJev {
+  site: string;
   session_id: string;
   answer: unknown;
   fingerprint: string;
   updated_at: number;
+}
+
+export interface StoredSite {
+  id: string;
+  name: string;
+  host: string;
+  environment: string;
+  anonymous: boolean;
+  publishable_key: string;
+  secret_key_hash: string;
 }
 
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
@@ -62,21 +76,41 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 }
 
 /** Store a batch as the sensor sent it, minus the `lab` raw-event stream (only sent on labelled test runs). */
-export function putBatch(sessionId: string, receivedAt: number, meta: BatchMeta, body: unknown): Promise<number> {
+export function putBatch(siteId: string, sessionId: string, receivedAt: number, meta: BatchMeta, body: unknown): Promise<number> {
   const { lab: _lab, ...kept } = body as Record<string, unknown>;
-  return rpc("observe_put_batch", { p_session_id: sessionId, p_received_at: receivedAt, p_meta: meta, p_body: kept });
+  return rpc("observe_put_batch_v2", { p_site: siteId, p_session_id: sessionId, p_received_at: receivedAt, p_meta: meta, p_body: kept });
 }
 
-/** Batches stored after `afterId` that arrived at or after `since`, oldest first. */
+/** Batches of every site this console may see, stored after `afterId` and received at or after `since`, oldest first. */
 export function batchesAfter(afterId: number, since: number, limit: number): Promise<StoredBatch[]> {
-  return rpc("observe_batches", { p_after: afterId, p_since: since, p_limit: limit });
+  return rpc("observe_batches_v2", { p_after: afterId, p_since: since, p_limit: limit });
 }
 
-export function putJev(sessionId: string, answer: unknown, fingerprint: string, updatedAt: number): Promise<void> {
-  return rpc("observe_put_jev", { p_session_id: sessionId, p_answer: answer, p_fingerprint: fingerprint, p_updated_at: updatedAt });
+export function putJev(siteId: string, sessionId: string, answer: unknown, fingerprint: string, updatedAt: number): Promise<void> {
+  return rpc("observe_put_jev_v2", { p_site: siteId, p_session_id: sessionId, p_answer: answer, p_fingerprint: fingerprint, p_updated_at: updatedAt });
 }
 
 /** Jev answers stored or replaced after `after` (ms epoch), oldest first. */
 export function jevAfter(after: number): Promise<StoredJev[]> {
-  return rpc("observe_jev", { p_after: after });
+  return rpc("observe_jev_v2", { p_after: after });
+}
+
+export function listSites(): Promise<StoredSite[]> {
+  return rpc("observe_sites_v2", {});
+}
+
+export function createSite(site: StoredSite): Promise<void> {
+  return rpc("observe_create_site_v2", {
+    p_id: site.id,
+    p_name: site.name,
+    p_host: site.host,
+    p_environment: site.environment,
+    p_anonymous: site.anonymous,
+    p_publishable_key: site.publishable_key,
+    p_secret_key_hash: site.secret_key_hash,
+  });
+}
+
+export function setSecretHash(siteId: string, secretKeyHash: string): Promise<void> {
+  return rpc("observe_set_secret_v2", { p_id: siteId, p_secret_key_hash: secretKeyHash });
 }

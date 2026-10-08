@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import { LogoMark } from "@/components/logo";
 import { authEnabled } from "@/lib/auth";
-import { DEFAULT_SITE as SITE } from "@/lib/site";
 
 import { LoginForm } from "./form";
 
@@ -25,9 +24,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="relative w-full max-w-[380px] text-center">
         <LogoMark size={72} className="mx-auto" />
         <h1 className="mt-7 text-[34px] leading-[1.05] font-medium tracking-[-0.04em]">
-          Know who&apos;s driving <em>{SITE.host}</em>
+          Know who&apos;s driving <em>your product</em>
         </h1>
-        <p className="mt-3 text-[15px] text-ink-2">Sign in to the {SITE.name} console.</p>
+        <p className="mt-3 text-[15px] text-ink-2">Sign in to the console.</p>
         <LoginForm next={typeof next === "string" ? next : "/"} />
         <p className="mt-6 text-[12.5px] text-ink-3">Reads behaviour, never content.</p>
       </div>

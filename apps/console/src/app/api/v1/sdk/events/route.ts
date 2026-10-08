@@ -3,14 +3,21 @@ import { after } from "next/server";
 import { classifyIfDue } from "@/lib/classify";
 import { dbWritable, putBatch, type BatchMeta } from "@/lib/db";
 import { ingest, parseBatch } from "@/lib/ingest";
+import { RateLimit } from "@/lib/rate-limit";
 import { saveResult } from "@/lib/results";
 import { siteForKey } from "@/lib/site";
 import { store } from "@/lib/store";
-import { syncStore } from "@/lib/sync";
+import { ensureSites, syncStore } from "@/lib/sync";
+import { issueToken } from "@/lib/token";
 
 /**
- * Collector endpoint for `@observe/sensor`. Point the sensor's `endpoint` at `<console>/api`, or proxy a path on
- * the customer's own domain to it (a rewrite), so the page only ever talks to itself.
+ * Collector endpoint for `@observe/sensor` (docs/install.md). Sites send here through a path on their own domain
+ * (a rewrite or `@observe/next`'s forwarder), so the page only talks to itself. The reply carries a signed,
+ * short-lived session token the page attaches to protected requests; the site's server checks it with
+ * /api/v1/decide.
+ *
+ * Only the user agent, country and Web Bot Auth headers are read from the request. Cookies and IP addresses are
+ * never stored.
  */
 
 const CORS = {
@@ -23,11 +30,15 @@ const CORS = {
 
 const MAX_BODY = 256_000;
 
+/** A sensor flushes every few seconds; two batches a second for a minute is already far more than one tab sends. */
+const perSession = new RateLimit(120, 60_000);
+
 function metaFrom(req: Request): BatchMeta {
   const h = req.headers;
   const meta: BatchMeta = {};
   const ua = h.get("user-agent");
-  const country = h.get("x-vercel-ip-country");
+  // A forwarder (`@observe/next`) passes the visitor's country as x-observe-country, since Vercel overwrites its own.
+  const country = h.get("x-observe-country") ?? h.get("x-vercel-ip-country");
   const signatureAgent = h.get("signature-agent");
   if (ua) meta.ua = ua.slice(0, 300);
   if (country) meta.country = country.slice(0, 8);
@@ -47,21 +58,25 @@ export async function POST(req: Request) {
   }
   const batch = parseBatch(body);
   if (!batch) return new Response("Not a sensor batch", { status: 422, headers: CORS });
+
   // The key says which site this is. A deployed console takes only its sites' keys; locally the demo takes the rest.
+  await ensureSites();
   const site = siteForKey((body as { key?: unknown }).key);
   if (!site) return new Response("Unknown key", { status: 403, headers: CORS });
+  if (!perSession.take(`${site.id}:${batch.sessionId}`)) return new Response("Too many batches", { status: 429, headers: CORS });
 
+  const now = Date.now();
   const meta = metaFrom(req);
   if (site.stored && dbWritable) {
     // Store it; the replay after the response brings it (and anything other instances stored) into memory.
     try {
-      await putBatch(batch.sessionId, Date.now(), meta, body);
+      await putBatch(site.id, batch.sessionId, now, meta, body);
     } catch (e) {
       console.error("[observe] could not store batch:", e instanceof Error ? e.message : e);
       return new Response("Could not store batch", { status: 503, headers: CORS });
     }
   } else {
-    ingest(batch, Date.now(), meta, site.id);
+    ingest(batch, now, meta, site.id);
   }
 
   // Once the response has gone, so the sensor never waits: catch up with the database, save labelled test runs,
@@ -72,7 +87,7 @@ export async function POST(req: Request) {
     if (rec) await saveResult(rec);
     await classifyIfDue(batch.sessionId);
   });
-  return new Response(null, { status: 204, headers: CORS });
+  return Response.json(await issueToken(batch.sessionId, site.id, now), { headers: { ...CORS, "Cache-Control": "no-store" } });
 }
 
 export function OPTIONS() {

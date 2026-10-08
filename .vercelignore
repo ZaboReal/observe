@@ -13,3 +13,4 @@ apps/site
 tools/check/src
 tools/check/cypress
 tools/check/results
+apps/example-shop

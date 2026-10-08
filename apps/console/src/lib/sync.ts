@@ -1,15 +1,15 @@
 import "server-only";
 
-import { batchesAfter, dbConfigured, jevAfter } from "./db";
+import { batchesAfter, dbConfigured, jevAfter, listSites } from "./db";
 import { ingest, parseBatch } from "./ingest";
 import { resolvePassport } from "./passport";
-import { SITES } from "./site";
+import { setStoredSites } from "./site";
 import { HISTORY, store, type JevResult } from "./store";
 
 /**
- * Brings this server's in-memory store up to date with the database before a page or API reads it: new sensor
- * batches are replayed through the same ingest code, in the order they arrived and at the time they arrived,
- * then Jev's stored answers are applied. Without a database (local development) there is nothing to do.
+ * Brings this server's in-memory store up to date with the database before a page or API reads it: the list of
+ * sites is refreshed, new sensor batches are replayed through the same ingest code, in the order they arrived and
+ * at the time they arrived, then Jev's stored answers are applied. Without a database (local development) there is nothing to do.
  *
  * Calls within a second and a half of the last sync reuse it. A forced sync (after a batch was just stored)
  * always runs, after any sync already in flight, so it is sure to include that batch.
@@ -18,10 +18,9 @@ import { HISTORY, store, type JevResult } from "./store";
 const MIN_INTERVAL_MS = 1_500;
 const PAGE = 1_000;
 
-/** The database token belongs to one site: the real one this console is set up for. */
-const STORED = SITES.find((s) => s.stored);
-
 interface SyncState {
+  sitesAt: number;
+  sitesLoading: Promise<void> | null;
   afterId: number;
   jevAfter: number;
   lastAt: number;
@@ -31,10 +30,30 @@ interface SyncState {
 
 // On globalThis so a dev-server reload keeps the cursor along with the store it describes.
 const g = globalThis as unknown as { __observeSync?: SyncState };
-const state = (g.__observeSync ??= { afterId: 0, jevAfter: 0, lastAt: 0, running: null, queued: null });
+const state = (g.__observeSync ??= { sitesAt: 0, sitesLoading: null, afterId: 0, jevAfter: 0, lastAt: 0, running: null, queued: null });
+
+/** How long the list of sites is trusted before the collector reloads it. */
+const SITES_TTL_MS = 60_000;
+
+/**
+ * Make sure the database's sites are loaded, without a full sync. The collector calls this before looking up a
+ * batch's key, so a freshly started server knows every site from its first request.
+ */
+export function ensureSites(): Promise<void> {
+  if (!dbConfigured || Date.now() - state.sitesAt < SITES_TTL_MS) return Promise.resolve();
+  return (state.sitesLoading ??= listSites()
+    .then((rows) => {
+      setStoredSites(rows);
+      state.sitesAt = Date.now();
+    })
+    .catch((e) => console.error("[observe] could not load sites:", e instanceof Error ? e.message : e))
+    .finally(() => {
+      state.sitesLoading = null;
+    }));
+}
 
 export function syncStore(force = false): Promise<void> {
-  if (!dbConfigured || !STORED) return Promise.resolve();
+  if (!dbConfigured) return Promise.resolve();
   if (state.running) {
     if (!force) return state.running;
     // The running sync may have started before the caller's batch was stored: run once more after it.
@@ -54,12 +73,14 @@ async function run(): Promise<void> {
   const started = Date.now();
   try {
     const since = started - HISTORY;
+    setStoredSites(await listSites());
+    state.sitesAt = Date.now();
     for (;;) {
       const rows = await batchesAfter(state.afterId, since, PAGE);
       for (const row of rows) {
         state.afterId = Math.max(state.afterId, row.id);
         const batch = parseBatch(row.body);
-        if (batch) ingest(batch, row.received_at, row.meta ?? {}, STORED!.id);
+        if (batch) ingest(batch, row.received_at, row.meta ?? {}, row.site);
       }
       if (rows.length < PAGE) break;
     }

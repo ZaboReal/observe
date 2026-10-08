@@ -7,3 +7,6 @@ next-env.d.ts
 pnpm-lock.yaml
 # Saved test-run results (labelled sessions), see src/lib/results.ts.
 .data/
+# Hosted files copied from packages/ at build time (scripts/copy-public.mjs).
+public/sensor/
+public/packages/

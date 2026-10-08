@@ -7,7 +7,7 @@ import { buildEvidence } from "./evidence";
 import { jevConfigured, systemOne } from "./jev";
 import { buildQuestions, parseAnswers, type Questions } from "./jev-questions";
 import { resolvePassport } from "./passport";
-import { SITES } from "./site";
+import { siteById } from "./site";
 import { saveResult } from "./results";
 import { store, type SensorRecord } from "./store";
 
@@ -18,8 +18,6 @@ import { store, type SensorRecord } from "./store";
  */
 
 const MIN_INTERVAL_MS = 3_000;
-/** Only the stored site's answers go to the database (the token belongs to that site). */
-const STORED_ID = SITES.find((s) => s.stored)?.id;
 const MAX_IN_FLIGHT = 8;
 /** Below this, behaviour says little; page signals alone are still worth asking about. */
 const MIN_ACTIONS = 2;
@@ -82,7 +80,7 @@ export async function classifyIfDue(id: string): Promise<void> {
     rec.jev = { ...parseAnswers(res.raw), at: Date.now(), model: res.model, latencyMs: res.latencyMs, inputTokens: res.inputTokens, actionsSeen: seen };
     status.key = key;
     status.error = null;
-    if (dbWritable && rec.site === STORED_ID) await putJev(id, rec.jev, key, rec.jev.at).catch((e) => console.error("[observe] could not store Jev's answer:", e instanceof Error ? e.message : e));
+    if (dbWritable && siteById(rec.site)?.stored) await putJev(rec.site, id, rec.jev, key, rec.jev.at).catch((e) => console.error("[observe] could not store Jev's answer:", e instanceof Error ? e.message : e));
   } catch (e) {
     // Leave the fingerprint alone so the next batch tries again; the rules' verdict stands meanwhile.
     status.error = e instanceof Error ? e.message : String(e);

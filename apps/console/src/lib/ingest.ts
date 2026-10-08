@@ -55,6 +55,8 @@ type Rec =
   | { type: "action"; t: number; kind: "click" | "typing" | "scroll" | "form"; index: number; compact: CompactAction | null }
   | { type: "handoff"; t: number; actionIndex: number; from: Verdict; to: Verdict }
   | { type: "protect"; t: number; actionId: string; passport: Passport }
+  /** A decision the site's server asked for (/api/v1/decide). Honoured only in batches the console itself wrote. */
+  | { type: "decision"; t: number; actionId: string }
   | { type: "other"; t: number };
 
 export interface Batch {
@@ -144,6 +146,10 @@ function parseRecord(v: unknown): Rec | null {
       const passport = parsePassport(v.passport);
       return actionId && passport ? { type: "protect", t: time(v.t), actionId, passport } : null;
     }
+    case "decision": {
+      const actionId = str(v.actionId, LIMITS.id);
+      return actionId ? { type: "decision", t: time(v.t), actionId } : null;
+    }
     case "start":
     case "unknown-extension":
       return { type: "other", t: time(v.t) };
@@ -194,6 +200,7 @@ const SIGNATURE_AGENTS: [RegExp, string][] = [[/chatgpt\.com|openai\.com/i, "cha
 
 export function ingest(batch: Batch, now: number, meta: BatchMeta, siteId: string): void {
   evict(now);
+  if (meta.server) return ingestDecisions(batch, now, siteId);
   const span = timeSpan(batch.records);
   let rec = store.sensor.get(batch.sessionId);
   if (!rec) {
@@ -306,6 +313,22 @@ export function ingest(batch: Batch, now: number, meta: BatchMeta, siteId: strin
 }
 
 /**
+ * Decisions the site's server asked /api/v1/decide for, stored by the console as their own batch. They mark the
+ * action on the session at the moment it was decided; a session this server does not know is skipped.
+ */
+function ingestDecisions(batch: Batch, now: number, siteId: string) {
+  const rec = store.sensor.get(batch.sessionId);
+  if (!rec || rec.site !== siteId) return;
+  const s = rec.session;
+  for (const r of batch.records) {
+    if (r.type !== "decision") continue;
+    push(rec, { t: Math.max(0, now - s.startedAt), type: "action", route: batch.page, action: actionFor(r.actionId, batch.page), driver: s.verdict });
+  }
+  Object.assign(s, summarise(rec.events));
+  s.lastAt = s.startedAt + (rec.events[rec.events.length - 1]?.t ?? 0);
+}
+
+/**
  * Keep what the server saw about the request. A `Signature-Agent` header is the agent saying it signs its
  * requests (Web Bot Auth); it is recorded as page-level evidence and, for agents the registry knows, names them.
  */
@@ -411,8 +434,8 @@ const SCOPE_HINTS: [RegExp, Scope][] = [
   [/create|edit|update|save|change/, "edit"],
 ];
 
-/** Map the id passed to `sensor.protect()` onto a catalogued action, or describe it from its name. */
-function actionFor(id: string, route: string): ActionDef {
+/** Map the id passed to `sensor.protect()` or /api/v1/decide onto a catalogued action, or describe it from its name. */
+export function actionFor(id: string, route: string): ActionDef {
   const known = ACTIONS.find((a) => a.id === id) ?? SITE_ACTIONS.find((a) => a.id === id);
   if (known) return known;
   const scope = SCOPE_HINTS.find(([re]) => re.test(id.toLowerCase()))?.[1] ?? "view";

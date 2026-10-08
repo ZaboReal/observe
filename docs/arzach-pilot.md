@@ -37,14 +37,14 @@ Console settings live in Vercel (`observe-console` → Settings → Environment 
 
 | Variable | |
 | --- | --- |
-| `OBSERVE_SITE_NAME`, `OBSERVE_SITE_HOST`, `OBSERVE_SITE_KEY` | Arzach, arzach.ai, the publishable key in `observe.js` |
-| `OBSERVE_DEMO=0`, `OBSERVE_SITE_ANONYMOUS=1` | No demo traffic; visitors aren't signed in |
+| `OBSERVE_DEMO=1` | Show the Ledgerline demo as a second site |
 | `SUPABASE_URL`, `SUPABASE_KEY` | The `observe` project and its publishable key |
-| `OBSERVE_DB_TOKEN` | Secret that the database functions check (only its SHA-256 is stored, in `observe.tokens`) |
+| `OBSERVE_DB_TOKEN` | The console's database token, scoped to every site (`*`); only its SHA-256 is stored, in `observe.tokens` |
+| `OBSERVE_TOKEN_SECRET` | Signs the session tokens the collector hands the page |
 | `OBSERVE_CONSOLE_PASSWORD` | The console's password |
 | `TYPESAFE_API_KEY` | Jev |
 
-The password and database token are also in `apps/console/.env.pilot.local` (git-ignored) on the machine that set this up.
+arzach.ai itself is a row in `observe.sites` (id `arzach`, publishable key `pk_arzach_9e46d0e50bc2f8c7`, anonymous visitors), with a secret key for `/api/v1/decide` whose hash only is stored. The password, database token, token secret and arzach's secret key are in `apps/console/.env.pilot.local` (git-ignored) on the machine that set this up. New sites are added from the console (*Add a site*); how a site installs Observe is in [install.md](install.md).
 
 Deploy the console from the repo root with `vercel deploy --prod` (the project's root directory is `apps/console`; `.vercelignore` keeps the upload small). The database schema is `apps/console/supabase/migrations/`.
 

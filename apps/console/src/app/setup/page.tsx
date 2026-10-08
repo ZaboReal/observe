@@ -1,81 +1,55 @@
-import { headers } from "next/headers";
 import type { Metadata } from "next";
 
 import { CodeBlock, CopyButton } from "@/components/code";
 import { LiveToggle } from "@/components/live";
+import { RotateSecret } from "@/components/rotate-secret";
 import { LiveDot, Mono, Page, PageHeader, Panel } from "@/components/ui";
-import { ago, num } from "@/lib/format";
-import { jevConfig } from "@/lib/jev";
-import { store } from "@/lib/store";
 import { currentSite } from "@/lib/current-site";
+import { dbWritable } from "@/lib/db";
+import { ago, num } from "@/lib/format";
+import { agentPrompt, nextSteps, otherSteps } from "@/lib/install";
+import { jevConfig } from "@/lib/jev";
+import { consoleOrigin, sensorManifest } from "@/lib/origin";
+import { store } from "@/lib/store";
 import { syncStore } from "@/lib/sync";
 
 export const metadata: Metadata = { title: "Setup" };
 export const dynamic = "force-dynamic";
 
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <Panel>
+      <div className="flex gap-4 pt-2">
+        <span className="font-mono text-[12.5px] text-ink-3">{String(n).padStart(2, "0")}</span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[17px] font-medium tracking-[-0.015em]">{title}</h2>
+          <div className="mt-1 space-y-3 text-[13.5px] leading-[1.6] text-ink-2">{children}</div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 export default async function SetupPage() {
   await syncStore();
   const site = await currentSite();
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3100";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
-  const endpoint = `${proto}://${host}/api`;
+  const origin = await consoleOrigin();
+  const sensor = await sensorManifest(origin);
+  const target = { console: origin, publishableKey: site.publishableKey, host: site.host, sensor };
+  const next = nextSteps(target);
+  const other = otherSteps(target);
+
   const now = Date.now();
   const last = store.lastSensorEvent(site.id);
-  const sensorSessions = store.sensor.size;
+  const siteSessions = [...store.sensor.values()].filter((r) => r.site === site.id).length;
   const jev = jevConfig();
   let lastAnswer: number | null = null;
   let lastError: { at: number; message: string } | null = null;
   for (const r of store.sensor.values()) {
+    if (r.site !== site.id) continue;
     if (r.jev && r.jev.at > (lastAnswer ?? 0)) lastAnswer = r.jev.at;
     if (r.jevStatus.error && r.jevStatus.at > (lastError?.at ?? 0)) lastError = { at: r.jevStatus.at, message: r.jevStatus.error };
   }
-
-  const npm = `import { init } from "@observe/sensor";
-
-const sensor = init({
-  publishableKey: "${site.publishableKey}",
-  endpoint: "${endpoint}",
-});`;
-
-  const tag = `<script
-  src="/observe-sensor.min.js"
-  data-key="${site.publishableKey}"
-  data-endpoint="${endpoint}"
-></script>`;
-
-  const identify = `// After sign-in. Use your own internal ids, never names, emails or tokens.
-sensor.identify({ userId: user.id, accountId: workspace.id });`;
-
-  const protect = `// Right before a sensitive action, send who is driving along with the request.
-const { passport } = sensor.protect("export_report");
-await fetch("/api/reports/export", {
-  method: "POST",
-  headers: { "X-Observe-Passport": JSON.stringify(passport) },
-});`;
-
-  const steps = [
-    {
-      title: "Add the sensor",
-      body: "It watches how the session is driven: pointer paths, key timing, how scrolling arrives and the marks agents leave on the page. It never reads what people type or see.",
-      code: [
-        { lang: "ts", code: npm },
-        { lang: "html · script tag", code: tag },
-      ],
-    },
-    {
-      title: "Say who is signed in",
-      body: site.anonymous
-        ? `Optional. Visitors to ${site.host} aren't signed in, so sessions show as Visitor with a short device id. If people do sign in somewhere, this groups their sessions by person and account.`
-        : "Sessions are grouped by person and account, so you can see which customers hand work to agents.",
-      code: [{ lang: "ts", code: identify }],
-    },
-    {
-      title: "Mark sensitive actions",
-      body: "Exports, invites, payments and settings changes show up in Activity with what your rules would decide.",
-      code: [{ lang: "ts", code: protect }],
-    },
-  ];
 
   return (
     <Page>
@@ -83,31 +57,51 @@ await fetch("/api/reports/export", {
         eyebrow="Setup"
         title={
           <>
-            Add the sensor <em>to {site.host}</em>
+            Put Observe in front <em>of {site.host}</em>
           </>
         }
-        description="One script tag, and your own sessions start arriving here within seconds."
+        description="Everything runs through your own domain, no cookies reach us, and your server makes the call at sensitive actions."
         actions={<LiveToggle />}
       />
 
       <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid min-w-0 gap-3">
-          {steps.map((s, i) => (
-            <Panel key={s.title}>
-              <div className="flex gap-4 pt-2">
-                <span className="font-mono text-[12.5px] text-ink-3">{String(i + 1).padStart(2, "0")}</span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-[17px] font-medium tracking-[-0.015em]">{s.title}</h2>
-                  <p className="mt-1 mb-4 text-[13.5px] leading-[1.6] text-ink-2">{s.body}</p>
-                  <div className="space-y-3">
-                    {s.code.map((c) => (
-                      <CodeBlock key={c.lang} lang={c.lang} code={c.code} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Panel>
-          ))}
+          <Step n={1} title="Install with your coding agent">
+            <p>
+              Paste this into Claude Code, Cursor or any coding agent working in the site&apos;s repo. It follows{" "}
+              <a className="text-ink underline underline-offset-2" href="/llms.txt">
+                /llms.txt
+              </a>
+              , finds the sensitive actions itself, wires them up in observe mode and opens a pull request for you to review.
+            </p>
+            <CodeBlock lang="prompt" code={agentPrompt(target)} />
+          </Step>
+
+          <Step n={2} title="Or by hand: Next.js">
+            <p>A forwarding route serves the sensor and passes its batches through your domain, stripping cookies. Updates arrive automatically.</p>
+            <CodeBlock lang="shell" code={next.install} />
+            <CodeBlock lang="env" code={next.env} />
+            <CodeBlock lang="ts" code={next.route} />
+            <CodeBlock lang="tsx" code={next.layout} />
+            <CodeBlock lang="ts" code={next.check} />
+          </Step>
+
+          <Step n={3} title="Or by hand: any other site">
+            <p>Serve a pinned copy of the sensor, checked against its published hash, and forward one path to Observe.</p>
+            <CodeBlock lang="shell" code={other.download} />
+            <CodeBlock lang="html" code={other.tag} />
+            <CodeBlock lang="vercel.json" code={other.vercel} />
+            <CodeBlock lang="netlify" code={other.netlify} />
+            <CodeBlock lang="nginx" code={other.nginx} />
+            <CodeBlock lang="your server" code={other.check} />
+          </Step>
+
+          <Step n={4} title="Check it works">
+            <p>
+              Open {site.host} with <Mono className="text-[12.5px]">?observe_debug=1</Mono>. A panel shows what the sensor sees, and the session appears here within seconds. Add{" "}
+              <Mono className="text-[12.5px]">?observe_driver=human</Mono> (or the agent&apos;s name) to label a test run.
+            </p>
+          </Step>
         </div>
 
         <div className="grid min-w-0 gap-3">
@@ -118,7 +112,7 @@ await fetch("/api/reports/export", {
                   <LiveDot /> Receiving
                 </div>
                 <p className="mt-1 text-[13px] text-ink-2">
-                  Last batch {ago(last, now)} · {num(sensorSessions)} {sensorSessions === 1 ? "session" : "sessions"} reported
+                  Last batch {ago(last, now)} · {num(siteSessions)} {siteSessions === 1 ? "session" : "sessions"} this week
                 </p>
               </>
             ) : (
@@ -127,17 +121,48 @@ await fetch("/api/reports/export", {
                   <LiveDot live={false} /> Waiting for the first batch
                 </div>
                 <p className="mt-1 text-[13px] leading-[1.55] text-ink-2">
-                  {site.demo ? (
-                    <>
-                      Until then the console shows demo traffic. Sessions from the sensor appear alongside it, marked{" "}
-                      <span className="rounded-full bg-track px-1.5 py-px font-mono text-[10.5px] text-ink-2">sensor</span>.
-                    </>
-                  ) : (
-                    "Sessions appear as soon as the sensor sends its first batch."
-                  )}
+                  {site.demo ? "Until then this demo shows generated traffic. Sessions from the sensor appear alongside it." : "Sessions appear as soon as the sensor sends its first batch."}
                 </p>
               </>
             )}
+            {sensor && (
+              <p className="mt-2 text-[12.5px] text-ink-3">
+                Hosted sensor <Mono className="text-[12px]">{sensor.version}</Mono>
+              </p>
+            )}
+          </Panel>
+
+          <Panel title="Keys" flush>
+            <dl>
+              <div className="px-4 py-3">
+                <dt className="eyebrow">Publishable key</dt>
+                <dd className="mt-1 flex items-center justify-between gap-2">
+                  <Mono className="truncate">{site.publishableKey}</Mono>
+                  <CopyButton text={site.publishableKey} label="Copy publishable key" />
+                </dd>
+                <p className="mt-1 text-[12px] text-ink-3">Public. Goes in the page.</p>
+              </div>
+              <div className="border-t border-line px-4 py-3">
+                <dt className="eyebrow">Secret key</dt>
+                <dd className="mt-1 text-[12.5px] leading-[1.5] text-ink-2">
+                  {site.stored ? (
+                    <>
+                      Server only, as <Mono className="text-[12px]">OBSERVE_SECRET_KEY</Mono>. Shown once when the site was created; we keep only a hash.
+                      {dbWritable && <RotateSecret siteId={site.id} />}
+                    </>
+                  ) : (
+                    "This site has none: add a site to get keys for your server."
+                  )}
+                </dd>
+              </div>
+              <div className="border-t border-line px-4 py-3">
+                <dt className="eyebrow">Console</dt>
+                <dd className="mt-1 flex items-center justify-between gap-2">
+                  <Mono className="truncate">{origin}</Mono>
+                  <CopyButton text={origin} label="Copy console URL" />
+                </dd>
+              </div>
+            </dl>
           </Panel>
 
           <Panel title="Who-is-driving model" description="Jev decides who drives each sensor session">
@@ -153,37 +178,20 @@ await fetch("/api/reports/export", {
                 </>
               ) : (
                 <>
-                  Add <Mono className="text-[12px]">TYPESAFE_API_KEY</Mono> to <Mono className="text-[12px]">apps/console/.env.local</Mono>. Until then the sensor&apos;s own rules decide.
+                  Add <Mono className="text-[12px]">TYPESAFE_API_KEY</Mono> to the console&apos;s environment. Until then the sensor&apos;s own rules decide.
                 </>
               )}
             </p>
             {lastError && lastError.at > (lastAnswer ?? 0) && <p className="mt-2 text-[12.5px] text-red">Last error: {lastError.message}</p>}
           </Panel>
 
-          <Panel title="Keys" flush>
-            <dl>
-              {[
-                { label: "Publishable key", value: site.publishableKey },
-                { label: "Collector endpoint", value: endpoint },
-              ].map((k) => (
-                <div key={k.label} className="border-t border-line px-4 py-3 first:border-t-0">
-                  <dt className="eyebrow">{k.label}</dt>
-                  <dd className="mt-1 flex items-center justify-between gap-2">
-                    <Mono className="truncate">{k.value}</Mono>
-                    <CopyButton text={k.value} label={`Copy ${k.label.toLowerCase()}`} />
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
-
           <Panel title="API" flush>
             <ul className="text-[13px]">
               {[
-                { route: "POST /api/v1/sdk/events", about: "Batches from the sensor. Behaviour only, no content." },
-                { route: "GET /api/v1/sessions", about: "Recent sessions with who is driving and their last activity." },
-                { route: "GET /api/v1/entries", about: "Agent actions and what the rules decided. Add format=csv for a file." },
-                { route: "GET /api/v1/sensor-sessions", about: "Sensor sessions with how each was decided and Jev's answer." },
+                { route: "POST /api/v1/sdk/events", about: "Batches from the sensor, through your domain. Behaviour only, no content. Returns the session token." },
+                { route: "POST /api/v1/decide", about: "Your server asks what to do at a protected action. Secret key and the page's token." },
+                { route: "GET /sensor/manifest.json", about: "The current sensor version and its integrity hash, for pinning." },
+                { route: "GET /llms.txt", about: "Install instructions for coding agents." },
               ].map((a) => (
                 <li key={a.route} className="border-t border-line px-4 py-3 first:border-t-0">
                   <Mono className="text-[12px]">{a.route}</Mono>

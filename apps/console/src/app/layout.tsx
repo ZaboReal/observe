@@ -7,7 +7,7 @@ import { GeistSans } from "geist/font/sans";
 import { MobileNav, Sidebar, type SiteInfo } from "@/components/nav";
 import { SESSION_COOKIE, validSession } from "@/lib/auth";
 import { currentSite } from "@/lib/current-site";
-import { SITES, type Site } from "@/lib/site";
+import { allSites, type Site } from "@/lib/site";
 import { syncStore } from "@/lib/sync";
 import { liveNow } from "@/lib/views";
 
@@ -35,7 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (signedIn) await syncStore();
   const live = signedIn ? liveNow(current.id).sessions : null;
   // Read on the server: the sites come from the deployment's environment, which the browser never sees.
-  const site: SiteInfo = { ...choice(current), live, sites: signedIn ? SITES.map(choice) : [] };
+  const site: SiteInfo = { ...choice(current), live, sites: signedIn ? allSites().map(choice) : [] };
 
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${serif.variable}`}>

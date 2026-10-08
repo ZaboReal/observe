@@ -17,10 +17,13 @@ The look follows the product site (`apps/site`): its colours, type, panels and p
 
 ## Sites
 
-The console watches one or more sites, each with its own sessions; the menu at the top of the sidebar switches between them (a cookie remembers the choice). The sensor's publishable key says which site a batch belongs to (`src/lib/site.ts`).
+The console watches one or more sites, each with its own sessions and keys; the menu at the top of the sidebar switches between them (a cookie remembers the choice) and adds new ones. The sensor's publishable key says which site a batch belongs to; a site's secret key (stored only as a SHA-256 hash) lets its server call `/api/v1/decide` (`src/lib/site.ts`).
 
+- **Sites in the database**, added with *Add a site* (`/sites/new`), which shows the secret key once and a prompt for the owner's coding agent. The arzach.ai pilot is the first: see [docs/arzach-pilot.md](../../docs/arzach-pilot.md).
 - **Ledgerline**, the demo, with generated traffic. On unless `OBSERVE_DEMO=0`. In development, batches with no key or an unknown one also go here.
-- **A real site**, when `OBSERVE_SITE_KEY` is set, with `OBSERVE_SITE_ID`, `OBSERVE_SITE_NAME`, `OBSERVE_SITE_HOST`, `OBSERVE_SITE_ENV` and `OBSERVE_SITE_ANONYMOUS=1` when visitors are not signed in. The arzach.ai pilot is the first: see [docs/arzach-pilot.md](../../docs/arzach-pilot.md).
+- **In development without a database**, one site from the environment: `OBSERVE_SITE_KEY`, `OBSERVE_SITE_ID`, `OBSERVE_SITE_NAME`, `OBSERVE_SITE_HOST`, `OBSERVE_SITE_ENV`, `OBSERVE_SITE_ANONYMOUS=1`.
+
+How a site installs Observe, and the contracts between sensor, console and `@observe/next`, are in [docs/install.md](../../docs/install.md). Setup shows each site's install steps; `/llms.txt` gives coding agents the same instructions.
 
 ## Pages
 
@@ -66,7 +69,10 @@ Policy decisions (`src/lib/policy.ts`) follow the blueprint's default pack and a
 
 | Route | |
 | --- | --- |
-| `POST /api/v1/sdk/events` | Sensor batches, in the shape `packages/sensor/src/core/transport.ts` sends. CORS open, 256 KB limit; a deployed console takes only its sites' keys |
+| `POST /api/v1/sdk/events` | Sensor batches, in the shape `packages/sensor/src/core/transport.ts` sends. CORS open, 256 KB limit, 120 batches a minute per session; a deployed console takes only its sites' keys. Replies with a signed session token (`src/lib/token.ts`) |
+| `POST /api/v1/decide` | A site's server asks what to do with a protected action: `Authorization: Bearer sk_…`, body `{ token, action, method, path }`. Answers who is driving and what the rules would do (observe mode), and records the action on the session |
+| `GET /sensor/<version>/observe.min.js`, `/sensor/v1/observe.min.js`, `/sensor/manifest.json` | The hosted sensor: versioned and immutable, the current version, and its integrity hash (`scripts/copy-public.mjs`) |
+| `GET /llms.txt` | Install instructions for coding agents |
 | `GET /api/v1/sessions` | Recent sessions: `verdict`, `driver`, `account`, `q`, `range`, `limit` |
 | `GET /api/v1/entries` | Agent activity as JSON, or CSV with `format=csv`: `range`, `sensitive`, `driver`, `outcome`, `limit` |
 | `GET /api/v1/sensor-sessions` | Sensor sessions with what decided each verdict, Jev's answer and the rules' verdict: `since` (ms epoch), `label`, `evidence=1` for the state Jev was given |
@@ -77,7 +83,7 @@ Policy decisions (`src/lib/policy.ts`) follow the blueprint's default pack and a
 - The driver catalogue (`src/lib/catalog.ts`) is built from the sensor's registry, so every agent the sensor can name has a name, provider and kind here. Demo traffic uses a subset with a traffic share.
 - Behavioural reasons arrive as `[ruleId, weight]` pairs; labels and robustness come from the sensor's `RULES`.
 
-The read APIs answer for the site chosen in the console. With `OBSERVE_CONSOLE_PASSWORD` set, every page and read API needs the password (`src/proxy.ts`, `src/lib/auth.ts`); the collector stays open.
+The read APIs answer for the site chosen in the console. With `OBSERVE_CONSOLE_PASSWORD` set, every page and read API needs the password (`src/proxy.ts`, `src/lib/auth.ts`); the collector, decide (secret key), the hosted sensor and `/llms.txt` stay open. Session tokens are signed with `OBSERVE_TOKEN_SECRET`.
 
 ## Deploy
 

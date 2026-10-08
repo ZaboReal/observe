@@ -5,8 +5,8 @@
   "description": "Console for seeing which AI agents act inside a product, for whom, and what they do.",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @observe/sensor build && next dev --port 3100",
-    "build": "pnpm --filter @observe/sensor build && next build",
+    "dev": "pnpm --filter @observe/sensor --filter @observe/next build && node scripts/copy-public.mjs && next dev --port 3100",
+    "build": "pnpm --filter @observe/sensor --filter @observe/next build && node scripts/copy-public.mjs && next build",
     "start": "next start --port 3100",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
@@ -21,6 +21,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@observe/next": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
