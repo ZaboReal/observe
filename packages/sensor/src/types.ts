@@ -115,6 +115,24 @@ export interface SensorConfig {
   ignoreSyntheticFrom?: string;
   /** Evaluation window (number of recent actions) for the rolling verdict. */
   windowActions?: number;
+  /**
+   * Same-origin requests to protect. A matching `fetch` or `XMLHttpRequest` waits for `protectAsync(action)` and
+   * carries the `x-observe-token` header; a matching `<form method="post">` gets a hidden `observe_token` input.
+   */
+  protect?: ProtectRule[];
+}
+
+/**
+ * A protected request. `path` is matched against the URL path (no query): segments are compared exactly, a `*`
+ * segment matches any one non-empty segment, and a trailing `*` matches the rest (one or more characters).
+ */
+export interface ProtectRule {
+  /** e.g. `/api/invoices/export` or `/api/admin/*`. */
+  path: string;
+  /** HTTP method, case-insensitive. Default `POST`; `*` matches any method. */
+  method?: string;
+  /** Action id recorded with the request and checked on your server, e.g. `export_invoices`. */
+  action: string;
 }
 
 export type SensorEvent =
@@ -127,4 +145,10 @@ export interface ProtectedActionSnapshot {
   sessionId: string;
   passport: Passport;
   t: number;
+}
+
+/** What `protectAsync` resolves to: the snapshot plus the collector's signed session token for your server. */
+export interface ProtectedAction extends ProtectedActionSnapshot {
+  /** Send as `x-observe-token`; your server checks it with `POST /api/v1/decide`. `null` when none arrived in time. */
+  token: string | null;
 }

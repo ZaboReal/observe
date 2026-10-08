@@ -1,5 +1,6 @@
 import { Capture, type ActionRecord, type LabStreamEvent } from "./capture";
 import { loadSession, newSession, readConsent, touchSession, writeConsent, type SessionIds } from "./core/session";
+import { normaliseRules, RequestGuard } from "./core/protect";
 import { Transport } from "./core/transport";
 import { DebugPanel } from "./debug/panel";
 import { analyzeAction } from "./detect/analyze";
@@ -13,7 +14,7 @@ import { StackWatcher } from "./probes/stack";
 import { DualFocusWatcher, probeDebugger, probeScreen, probeSoftwareGl, ViewportShiftWatcher } from "./probes/environment";
 import { WebMcpWatcher } from "./probes/webmcp";
 import { buildIndex, DRIVERS, type DriverSignature, type RegistryIndex } from "./registry";
-import type { Identity, Passport, ProtectedActionSnapshot, Reason, SensorConfig, SensorEvent } from "./types";
+import type { Identity, Passport, ProtectedAction, ProtectedActionSnapshot, Reason, SensorConfig, SensorEvent } from "./types";
 import { hasWindow, now, queryParam } from "./util/env";
 import { Emitter } from "./util/emitter";
 import { resetTargetOrdinals } from "./util/target";
@@ -24,6 +25,8 @@ type State = "idle" | "held" | "running" | "stopped";
 const HISTORY = 60;
 const LAB_LOCAL_MAX = 20_000;
 const ARTIFACT_GRACE_MS = 20_000;
+/** Longest `protectAsync` waits for a collector token before resolving with `token: null`. */
+const TOKEN_WAIT_MS = 1500;
 
 function emptyPassport(t = 0): Passport {
   return {
@@ -64,6 +67,7 @@ export class Sensor {
   private stackWatch: StackWatcher | null = null;
   private dualFocus: DualFocusWatcher | null = null;
   private transport: Transport;
+  private guard: RequestGuard | null = null;
   private panel: DebugPanel | null = null;
   private probeTimers: ReturnType<typeof setTimeout>[] = [];
   private history: ActionRecord[] = [];
@@ -153,6 +157,34 @@ export class Sensor {
     return snap;
   }
 
+  /**
+   * `protect`, then send the batch now and resolve once the collector's signed token is available, for your server to
+   * check with `POST /api/v1/decide`. Waits at most 1.5 s (then `token: null`). A token already held is returned
+   * straight away while the batch goes in the background.
+   */
+  async protectAsync(actionId: string): Promise<ProtectedAction> {
+    const snap = this.protect(actionId);
+    const held = this.transport.token();
+    // Held for consent or stopped: never send. No collector: no token will come.
+    if (this.state !== "running" || !this.transport.enabled) return { ...snap, token: held };
+    const sent = this.transport.flush(false);
+    if (held) return { ...snap, token: held };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const token = await Promise.race([
+      sent.then(() => this.transport.token()),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), TOKEN_WAIT_MS);
+      }),
+    ]);
+    clearTimeout(timer);
+    return { ...snap, token };
+  }
+
+  /** The collector's latest signed session token, or `null` when none arrived yet or it has expired. */
+  token(): string | null {
+    return this.transport.token();
+  }
+
   /** Apply a passport from a signed source (edge-verified Web Bot Auth or an agent handshake). */
   setPassport(p: Partial<Passport> & { source: "signature" | "handshake" }): void {
     this.external = { ...emptyPassport(this.t()), verdict: "agent", tier: "verified", agentProbability: 1, ...p };
@@ -183,6 +215,8 @@ export class Sensor {
     this.external = null;
     this.identity = { userId: null, accountId: null };
     this.session = { ...this.session, sessionId: newSession() };
+    // The token names the old session; the next batch brings one for the new session.
+    this.transport.clearToken();
     resetTargetOrdinals();
     if (this.state === "running") this.runProbes();
     this.recompute(true);
@@ -284,6 +318,15 @@ export class Sensor {
     this.viewport = new ViewportShiftWatcher(() => this.t(), (r) => this.persist(r, 120_000));
     this.viewport.start();
 
+    const rules = normaliseRules(this.config.protect);
+    if (rules.length) {
+      this.guard = new RequestGuard(rules, {
+        protectAsync: (action) => this.protectAsync(action),
+        protectNow: (action) => this.protectNow(action),
+      });
+      this.guard.install();
+    }
+
     this.transport.start();
     this.runProbes();
     this.scheduleProbes();
@@ -315,10 +358,20 @@ export class Sensor {
     this.stackWatch = null;
     this.dualFocus?.stop();
     this.dualFocus = null;
+    this.guard?.uninstall();
+    this.guard = null;
     for (const id of this.probeTimers) clearTimeout(id);
     this.probeTimers = [];
     this.panel?.unmount();
     this.panel = null;
+  }
+
+  /** For form posts and sync XHR, which can't wait: record now, send with keepalive, return the token held now. */
+  private protectNow(actionId: string): string | null {
+    const token = this.transport.token();
+    this.protect(actionId);
+    if (this.state === "running") void this.transport.flush(true);
+    return token;
   }
 
   private scheduleProbes(): void {

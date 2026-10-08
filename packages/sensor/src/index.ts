@@ -10,6 +10,7 @@ export { RULES, makeReason } from "./detect/rules";
 export type { RuleId, RuleDef } from "./detect/rules";
 export type { ActionRecord, ClickRecord, TypingRecord, ScrollRecord, FormRecord, LabStreamEvent } from "./capture";
 export { VERSION } from "./version";
+export { TOKEN_HEADER, TOKEN_FIELD } from "./core/protect";
 export * from "./types";
 
 const instances = new Map<string, Sensor>();
@@ -26,5 +27,18 @@ export function init(config: SensorConfig = {}): Sensor {
     instances.set(key, s);
   }
   s.start();
+  expose(s);
   return s;
+}
+
+/** Make the sensor findable as `window.ObserveSensor.instance` for page code, however it was created. */
+function expose(s: Sensor): void {
+  if (typeof window === "undefined") return;
+  try {
+    const w = window as unknown as { ObserveSensor?: { instance?: Sensor } };
+    if (w.ObserveSensor) w.ObserveSensor.instance = s;
+    else w.ObserveSensor = { instance: s };
+  } catch {
+    /* frozen or non-writable global */
+  }
 }

@@ -12,6 +12,8 @@ Script tag:
 <script src="observe-sensor.min.js" data-key="pk_live_..." data-endpoint="https://collector.example.com"></script>
 ```
 
+Add `data-protect='[{"path":"/api/invoices/export","action":"export_invoices"}]'` to protect requests (see [Protected requests](#protected-requests)). However the sensor starts, from `data-*` attributes or `ObserveSensor.init(...)` in page code, it is `window.ObserveSensor.instance`.
+
 Module:
 
 ```ts
@@ -57,6 +59,59 @@ A passport looks like this:
 
 The browser-side passport is advisory. The final decision belongs on your server, ideally combined with edge signature checks.
 
+## Protected requests
+
+The collector answers every batch with a short-lived token signed for this session (`200 {"token", "exp"}`, 30 minutes, refreshed by every batch). The page attaches it to a sensitive request and your server asks the console what to do; the browser's own verdict is never trusted.
+
+Let the sensor do it for matching requests:
+
+```ts
+init({
+  publishableKey: "pk_live_...",
+  endpoint: "/_observe",
+  protect: [
+    { path: "/api/invoices/export", method: "POST", action: "export_invoices" },
+    { path: "/api/teams/*/invite", action: "invite_user" },
+  ],
+});
+```
+
+A same-origin `fetch` or `XMLHttpRequest` whose path and method match first runs `protectAsync(action)` (at most 1.5 s), then goes out with:
+
+```http
+POST /api/invoices/export
+x-observe-token: v1.eyJzIjoic19hYmMiLCJrIjoiYXJ6YWNoIiwiZSI6MTc5MTUwMDAwMDAwMH0.Q2x...
+```
+
+- Paths match without the query string. Segments compare exactly; `*` matches one segment; a trailing `*` matches the rest. `method` defaults to `POST`, is case-insensitive, and `*` matches any.
+- Cross-origin requests are never touched. Request bodies are never read. Without a token the request goes out without the header; if anything in the sensor throws, the request goes out exactly as the page made it.
+- `<form method="post">` submissions to a matching URL get a hidden `observe_token` input. A form submission can't wait, so it carries the token held at that moment (normally fresh, since every batch refreshes it); the `protect` record goes with a keepalive request. Synchronous XHR works the same way. `form.submit()` fires no submit event and is not covered; `requestSubmit()` and clicks are.
+- `destroy()` restores `fetch` and `XMLHttpRequest`.
+
+Or do it by hand:
+
+```ts
+const { token } = await sensor.protectAsync("export_invoices");
+await fetch("/api/invoices/export", { method: "POST", headers: token ? { "x-observe-token": token } : {} });
+```
+
+On your server, check the token with the secret key (`@observe/next` does this as `observe.check(action)`):
+
+```ts
+const res = await fetch("https://<console>/api/v1/decide", {
+  method: "POST",
+  headers: { authorization: `Bearer ${process.env.OBSERVE_SECRET_KEY}`, "content-type": "application/json" },
+  body: JSON.stringify({ token: req.headers.get("x-observe-token"), action: "export_invoices", method: "POST", path: "/api/invoices/export" }),
+  signal: AbortSignal.timeout(1500),
+});
+const d = await res.json(); // { verdict, tier, driver, outcome, wouldBlock, token: "valid" | "missing" | "invalid" | "expired", ... }
+if (d.wouldBlock) return new Response("Not allowed for this agent", { status: 403 });
+```
+
+Fail open if decide errors or times out. A missing, invalid or expired token means the session is unknown (`verdict: "unknown"`), not human.
+
+Batches never use `sendBeacon` (it always sends cookies): they go with `fetch(..., { credentials: "omit" })`, and on `pagehide` with `keepalive: true`, kept under the 64 KB keepalive limit.
+
 ## API
 
 | Method | What it does |
@@ -64,6 +119,8 @@ The browser-side passport is advisory. The final decision belongs on your server
 | `init(config)` | Create or return the sensor for a key and endpoint, and start it |
 | `sensor.identify({ userId, accountId })` | Attach your own opaque ids |
 | `sensor.protect(actionId)` | Close open typing runs and return the current passport for a sensitive action |
+| `sensor.protectAsync(actionId)` | `protect`, send the batch now, and resolve to `{ actionId, sessionId, passport, token }` once the collector's token is there (at most 1.5 s, then `token: null`; a token already held resolves at once) |
+| `sensor.token()` | The collector's latest signed session token, or `null` when there is none or it has expired |
 | `sensor.onPassport(fn)` | Subscribe to passport changes (called immediately with the current one) |
 | `sensor.on(fn)` | Every event: passports, individual reasons, handoffs |
 | `sensor.setPassport({ source: "signature", driver })` | Apply a verified passport from the edge (Web Bot Auth) or a handshake |
@@ -86,6 +143,7 @@ The browser-side passport is advisory. The final decision belongs on your server
 | `probes.console` | `true` | Wrap `console.log/info/debug` to catch automation markers. Log call sites then point at the sensor; add it to DevTools' ignore list or turn this off |
 | `ignoreSyntheticFrom` | — | CSS selector for elements whose synthetic events come from your own code |
 | `windowActions` | `12` | Actions in the rolling evaluation window |
+| `protect` | — | `[{ path, method?, action }]`: same-origin `fetch`, XHR and form posts to wait for a token and carry `x-observe-token` (forms: `observe_token`). Script tag: `data-protect` (JSON). See [Protected requests](#protected-requests) |
 
 ## How detection works
 
