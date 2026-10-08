@@ -1,0 +1,15 @@
+# What `vercel deploy` uploads for the console (project root directory: apps/console).
+# The workspace files and the sensor package are needed to build it; everything else stays local.
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/.data
+**/.env*
+.claude
+docs
+data
+apps/site
+tools/check/src
+tools/check/cypress
+tools/check/results

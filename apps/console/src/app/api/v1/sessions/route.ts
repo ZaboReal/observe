@@ -1,13 +1,17 @@
 import { listSessions, parseRange } from "@/lib/queries";
+import { currentSite } from "@/lib/current-site";
+import { syncStore } from "@/lib/sync";
 import type { Verdict } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 /** Recent sessions as JSON: `?verdict=agent&driver=claude-in-chrome&account=acct_northwind&q=morgan&range=24h&limit=50`. */
-export function GET(req: Request) {
+export async function GET(req: Request) {
+  await syncStore();
+  const site = await currentSite();
   const url = new URL(req.url);
   const verdict = url.searchParams.get("verdict");
-  const result = listSessions({
+  const result = listSessions({ siteId: site.id,
     verdict: verdict === "human" || verdict === "agent" || verdict === "unknown" ? (verdict as Verdict) : "all",
     driverId: url.searchParams.get("driver") ?? undefined,
     accountId: url.searchParams.get("account") ?? undefined,

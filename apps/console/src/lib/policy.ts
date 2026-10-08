@@ -19,12 +19,12 @@ export function decide(tier: Tier, action: ActionDef): { outcome: Outcome; polic
     return { outcome: "admit", policy: "default/verified" };
   }
 
-  // Recognised by behaviour: reading is fine, exporting needs a visa, writes need the person to co-sign.
+  // Recognised by behaviour: reading is fine, exporting needs the person's approval, writes need them to co-sign.
   switch (action.scope) {
     case "view":
       return { outcome: "admit", policy: "default/view-open" };
     case "export":
-      return { outcome: "request_visa", policy: "default/export-needs-visa" };
+      return { outcome: "request_access", policy: "default/export-needs-approval" };
     case "edit":
     case "invite":
     case "send":
@@ -35,11 +35,11 @@ export function decide(tier: Tier, action: ActionDef): { outcome: Outcome; polic
 }
 
 export const OUTCOME_LABEL: Record<Outcome, string> = {
-  admit: "Admit",
+  admit: "Allow",
   slow: "Slow",
-  request_visa: "Request visa",
+  request_access: "Ask for access",
   ask: "Ask the person",
   reroute: "Reroute",
   bill: "Bill",
-  refuse: "Refuse",
+  refuse: "Block",
 };

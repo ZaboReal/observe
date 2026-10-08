@@ -2,10 +2,12 @@ import "server-only";
 
 import { DRIVERS } from "@observe/sensor";
 import { getDriver } from "./catalog";
+import { dbConfigured, dbWritable, putJev } from "./db";
 import { buildEvidence } from "./evidence";
 import { jevConfigured, systemOne } from "./jev";
 import { buildQuestions, parseAnswers, type Questions } from "./jev-questions";
 import { resolvePassport } from "./passport";
+import { SITES } from "./site";
 import { saveResult } from "./results";
 import { store, type SensorRecord } from "./store";
 
@@ -16,6 +18,8 @@ import { store, type SensorRecord } from "./store";
  */
 
 const MIN_INTERVAL_MS = 3_000;
+/** Only the stored site's answers go to the database (the token belongs to that site). */
+const STORED_ID = SITES.find((s) => s.stored)?.id;
 const MAX_IN_FLIGHT = 8;
 /** Below this, behaviour says little; page signals alone are still worth asking about. */
 const MIN_ACTIONS = 2;
@@ -38,6 +42,10 @@ export function evidenceFor(rec: SensorRecord): Record<string, unknown> {
   );
 }
 
+/**
+ * Try again later. Only without a database: a deployed console runs classification after the response, in a
+ * function that may be frozen once it returns, so a timer could never fire. There it waits in place instead.
+ */
 function retry(id: string, ms: number) {
   if (retries.has(id)) return;
   retries.set(
@@ -49,6 +57,8 @@ function retry(id: string, ms: number) {
   );
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function classifyIfDue(id: string): Promise<void> {
   if (!jevConfigured()) return;
   const rec = store.sensor.get(id);
@@ -58,7 +68,11 @@ export async function classifyIfDue(id: string): Promise<void> {
   if (status.inFlight || key === status.key) return;
   if (rec.actionCount < MIN_ACTIONS && rec.observations.size === 0) return;
   const wait = status.at + MIN_INTERVAL_MS - Date.now();
-  if (wait > 0 || inFlight >= MAX_IN_FLIGHT) return retry(id, Math.max(wait, 500));
+  if (wait > 0 || inFlight >= MAX_IN_FLIGHT) {
+    if (!dbConfigured) return retry(id, Math.max(wait, 500));
+    await sleep(Math.max(wait, 500));
+    return classifyIfDue(id);
+  }
 
   status.inFlight = true;
   inFlight++;
@@ -68,6 +82,7 @@ export async function classifyIfDue(id: string): Promise<void> {
     rec.jev = { ...parseAnswers(res.raw), at: Date.now(), model: res.model, latencyMs: res.latencyMs, inputTokens: res.inputTokens, actionsSeen: seen };
     status.key = key;
     status.error = null;
+    if (dbWritable && rec.site === STORED_ID) await putJev(id, rec.jev, key, rec.jev.at).catch((e) => console.error("[observe] could not store Jev's answer:", e instanceof Error ? e.message : e));
   } catch (e) {
     // Leave the fingerprint alone so the next batch tries again; the rules' verdict stands meanwhile.
     status.error = e instanceof Error ? e.message : String(e);
@@ -79,5 +94,9 @@ export async function classifyIfDue(id: string): Promise<void> {
     void saveResult(rec);
   }
   // Evidence that arrived while Jev was answering gets its own pass.
-  if (!status.error && fingerprint(rec) !== status.key) retry(id, MIN_INTERVAL_MS);
+  if (!status.error && fingerprint(rec) !== status.key) {
+    if (!dbConfigured) return retry(id, MIN_INTERVAL_MS);
+    await sleep(MIN_INTERVAL_MS);
+    return classifyIfDue(id);
+  }
 }

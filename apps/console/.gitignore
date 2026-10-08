@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.next-*/
 next-env.d.ts
 *.tsbuildinfo
 # The workspace lockfile lives at the repo root; this one only exists while the app is installed on its own.

@@ -1,6 +1,7 @@
 import { evidenceFor } from "@/lib/classify";
 import { loadResults, summarise } from "@/lib/results";
 import { store } from "@/lib/store";
+import { syncStore } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
  * `?evidence=1` adds the state Jev was given (live sessions only).
  */
 export async function GET(req: Request) {
+  await syncStore();
   const url = new URL(req.url);
   const since = Number(url.searchParams.get("since")) || 0;
   const label = url.searchParams.get("label");

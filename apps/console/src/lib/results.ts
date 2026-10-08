@@ -3,13 +3,15 @@ import "server-only";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { dbWritable } from "./db";
 import { exactMatch } from "./passport";
 import type { SensorRecord } from "./store";
 
 /**
  * Test runs (sessions with a ground-truth label from `?observe_driver=`) are written to disk as their verdict
  * changes, so results survive a console restart. Ordinary sessions are never written. The file is append-only
- * JSON lines; the last line for a session is its latest state.
+ * JSON lines; the last line for a session is its latest state. A deployed console keeps everything in its
+ * database instead (and has no writable disk), so there this does nothing.
  */
 
 const FILE = process.env.OBSERVE_RESULTS_FILE || path.join(process.cwd(), ".data", "test-runs.jsonl");
@@ -46,15 +48,16 @@ let ready: Promise<unknown> | null = null;
 
 /** Append the session's state if it is a labelled test run and changed since the last write. */
 export async function saveResult(rec: SensorRecord): Promise<void> {
-  if (!rec.label) return;
+  if (!rec.label || dbWritable) return;
   const s = summarise(rec);
   const key = JSON.stringify([s.actions, s.decision, s.jev?.at ?? null, s.jevError, s.exactMatch?.label ?? null]);
   if (lastSaved.get(s.id) === key) return;
   lastSaved.set(s.id, key);
   try {
-    ready ??= mkdir(path.dirname(FILE), { recursive: true });
+    // turbopackIgnore: a local file for development, so the build should not trace it into the deployed function.
+    ready ??= mkdir(/*turbopackIgnore: true*/ path.dirname(FILE), { recursive: true });
     await ready;
-    await appendFile(FILE, `${JSON.stringify({ ...s, savedAt: Date.now() })}\n`);
+    await appendFile(/*turbopackIgnore: true*/ FILE, `${JSON.stringify({ ...s, savedAt: Date.now() })}\n`);
   } catch (e) {
     lastSaved.delete(s.id);
     console.error("[observe] could not save test-run result:", e instanceof Error ? e.message : e);
@@ -63,9 +66,10 @@ export async function saveResult(rec: SensorRecord): Promise<void> {
 
 /** Latest saved state of each test run that started at or after `since`. */
 export async function loadResults(since = 0): Promise<SessionSummary[]> {
+  if (dbWritable) return [];
   let text: string;
   try {
-    text = await readFile(FILE, "utf8");
+    text = await readFile(/*turbopackIgnore: true*/ FILE, "utf8");
   } catch {
     return [];
   }

@@ -1,47 +1,94 @@
 @import "tailwindcss";
 
-/* Monochrome: the data is the only loud thing. Agents are ink, people are a quiet grey. */
+/*
+ * The product site's look (apps/site/styles.css): soft grey ground, white sheets ringed by a hairline,
+ * ink type with an italic serif accent, and colour kept for status and for data.
+ */
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  --font-sans: var(--font-geist-sans), -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-serif: var(--font-instrument-serif), "Iowan Old Style", Georgia, serif;
 
-  --color-canvas: #ffffff;
-  --color-wash: #fafafa;
-  --color-wash-2: #f4f4f4;
-  --color-line: #ededed;
-  --color-line-2: #e0e0e0;
-  --color-ink: #0a0a0a;
-  --color-ink-2: #4d4d4d;
-  --color-ink-3: #858585;
-  --color-ink-4: #b3b3b3;
+  /* Surfaces */
+  --color-bg: #f5f6f8;
+  --color-bg-2: #eceef2;
+  --color-sheet: #ffffff;
+  --color-tile: #f7f8fa;
+  --color-side: #f3f4f7;
+  --color-track: #f0f1f4;
 
-  --color-human: #d9d9d9;
-  --color-agent: #0a0a0a;
-  --color-unknown: #f2f2f2;
+  /* Type and rules */
+  --color-ink: #101215;
+  --color-ink-body: #33363b;
+  --color-ink-2: #5e636b;
+  --color-ink-3: #9298a0;
+  --color-line: rgb(16 18 21 / 0.08);
+  --color-line-2: rgb(16 18 21 / 0.16);
+
+  /* Status: allowed, asked, blocked */
+  --color-green: #1c7a5e;
+  --color-green-soft: #e2f2ec;
+  --color-red: #c2412d;
+  --color-red-soft: #fbe7e3;
+  --color-amber: #a5641c;
+  --color-amber-soft: #f8ecdb;
+
+  /*
+   * Data: the site's validated pair (blue people, green agents) plus a neutral grey for sessions not decided yet,
+   * which must never read as a person. Checked with the dataviz validator: adjacent CVD ΔE 26.5 / 16.0, all >= 3:1.
+   */
+  --color-people: #2a78d6;
+  --color-agents: #008300;
+  --color-agents-track: #e4eee4;
+  --color-undecided: #8a9099;
+  --color-grid: #eceef2;
+
+  --shadow-ring: 0 0 0 1px rgb(16 18 21 / 0.08);
+  --shadow-pill: 0 1px 2px rgb(16 18 21 / 0.12);
+  --shadow-sheet: 0 0 0 1px rgb(16 18 21 / 0.08), 0 1px 2px rgb(16 18 21 / 0.05), 0 18px 44px -16px rgb(22 30 46 / 0.16);
+  --shadow-lift: 0 0 0 1px rgb(16 18 21 / 0.08), 0 2px 6px rgb(16 18 21 / 0.05), 0 44px 90px -26px rgb(22 30 46 / 0.3);
+  --shadow-btn: 0 8px 18px -8px rgb(16 18 21 / 0.55);
+
+  --ease-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @layer base {
   html {
-    background: var(--color-canvas);
+    background: var(--color-sheet);
     color: var(--color-ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
   }
   body {
-    background: var(--color-canvas);
+    background: var(--color-sheet);
     font-family: var(--font-sans);
     font-size: 14px;
-    line-height: 1.45;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 500;
+  }
+  /* The site's accent: an italic serif word or two inside a heading. */
+  h1 em,
+  h2 em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 1.08em;
+    letter-spacing: -0.01em;
+    color: var(--color-ink-2);
   }
   ::selection {
     background: var(--color-ink);
-    color: var(--color-canvas);
+    color: #fff;
   }
   :focus-visible {
     outline: 2px solid var(--color-ink);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 6px;
   }
 }
 
@@ -49,7 +96,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Horizontal strips (tabs, mobile nav) scroll by swipe without a visible bar. */
+/* Small labels: mono, uppercase, letter-spaced (the site's .side-label and table headers). */
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+/* Horizontal strips (tabs, segmented controls) scroll by swipe without a visible bar. */
 @utility no-scrollbar {
   scrollbar-width: none;
   &::-webkit-scrollbar {
@@ -57,37 +114,160 @@
   }
 }
 
-/* New rows in live tables settle in rather than popping. */
-@keyframes row-in {
-  from {
-    background-color: var(--color-wash-2);
+@layer components {
+  /* The pulsing green dot. */
+  .live {
+    display: inline-block;
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-green);
+    box-shadow: 0 0 0 4px rgb(28 122 94 / 0.15);
+    animation: live-pulse 2.4s ease-in-out infinite;
   }
-  to {
-    background-color: transparent;
+  .live.sm {
+    width: 6px;
+    height: 6px;
+    box-shadow: 0 0 0 3px rgb(28 122 94 / 0.15);
   }
-}
-.row-new {
-  animation: row-in 1.6s ease-out;
+  .live.off {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--color-ink-3);
+    animation: none;
+  }
+
+  /* Who is driving: a small ink square for an agent, a hollow circle for a person, a dashed one when undecided. */
+  .who {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .who::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+  }
+  .who.agent::before {
+    background: var(--color-ink);
+  }
+  .who.person {
+    color: var(--color-ink-2);
+  }
+  .who.person::before {
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.5px var(--color-ink-3);
+  }
+  .who.undecided {
+    color: var(--color-ink-3);
+  }
+  .who.undecided::before {
+    border-radius: 50%;
+    border: 1.5px dashed var(--color-ink-3);
+    width: 8px;
+    height: 8px;
+  }
+
+  /* Tables in the site's style: mono headers, hairline rows. */
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+  .tbl th {
+    padding: 9px 10px;
+    font: 500 11px var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+    border-bottom: 1px solid var(--color-line);
+    white-space: nowrap;
+  }
+  .tbl td {
+    padding: 11px 10px;
+    border-bottom: 1px solid var(--color-line);
+    vertical-align: top;
+  }
+  .tbl tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .tbl th:first-child,
+  .tbl td:first-child {
+    padding-left: 16px;
+  }
+  .tbl th:last-child,
+  .tbl td:last-child {
+    padding-right: 16px;
+  }
+  .tbl tbody tr.link {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .tbl tbody tr.link:hover td {
+    background: #f9fafb;
+  }
 }
 
 @keyframes live-pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgb(10 10 10 / 0.35);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgb(10 10 10 / 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgb(10 10 10 / 0);
+  50% {
+    box-shadow: 0 0 0 7px rgb(28 122 94 / 0.04);
   }
 }
-.live-dot {
-  animation: live-pulse 1.8s ease-out infinite;
+
+/* A new row in a live list settles in from above with a faint green wash. */
+@keyframes feed-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+    background-color: rgb(28 122 94 / 0.06);
+  }
+}
+.feed-new {
+  animation: feed-in 0.5s var(--ease-soft) both;
+}
+
+@keyframes row-in {
+  from {
+    background-color: rgb(28 122 94 / 0.07);
+  }
+}
+.row-new td {
+  animation: row-in 1.6s ease-out;
+}
+
+/* Columns grow from the baseline the first time a chart appears. */
+@keyframes grow-up {
+  from {
+    transform: scaleY(0);
+  }
+}
+.chart-grow .seg-bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: grow-up 0.9s var(--ease-soft) both;
+  animation-delay: calc(var(--i) * 18ms + 0.1s);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+.menu-rise {
+  transform-origin: top center;
+  animation: rise 0.35s var(--ease-soft) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row-new,
-  .live-dot {
+  .live,
+  .feed-new,
+  .row-new td,
+  .chart-grow .seg-bar,
+  .menu-rise {
     animation: none;
   }
 }

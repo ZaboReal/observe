@@ -40,7 +40,7 @@ export type Scope = "view" | "export" | "edit" | "invite" | "send" | "pay" | "se
 export type Risk = "low" | "medium" | "high" | "critical";
 
 /** What the default policy would do with an action. Computed in observe mode, never enforced here. */
-export type Outcome = "admit" | "slow" | "request_visa" | "ask" | "reroute" | "bill" | "refuse";
+export type Outcome = "admit" | "slow" | "request_access" | "ask" | "reroute" | "bill" | "refuse";
 
 export interface ActionDef {
   id: string;

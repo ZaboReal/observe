@@ -1,13 +1,14 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 
 import { FilterChip, SearchBox, SelectFilter, ToggleFilter } from "@/components/filters";
 import { LiveToggle } from "@/components/live";
 import { SessionsTable } from "@/components/sessions-table";
-import { Card, Empty, Page, PageHeader, Segmented } from "@/components/ui";
+import { Empty, Page, PageHeader, Panel, SegCount, Segmented } from "@/components/ui";
 import { getAccount } from "@/lib/catalog";
-import { num } from "@/lib/format";
+import { accountText, num } from "@/lib/format";
 import { RANGES, listSessions, parseRange, seenDrivers } from "@/lib/queries";
+import { currentSite } from "@/lib/current-site";
+import { syncStore } from "@/lib/sync";
 import type { Verdict } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Sessions" };
@@ -29,6 +30,8 @@ function href(params: Params, changes: Record<string, string | null>): string {
 }
 
 export default async function SessionsPage({ searchParams }: { searchParams: Promise<Params> }) {
+  await syncStore();
+  const site = await currentSite();
   const params = await searchParams;
   const range = parseRange(one(params.range));
   const v = one(params.type);
@@ -37,6 +40,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   const now = Date.now();
   const { rows, total, counts } = listSessions(
     {
+      siteId: site.id,
       range,
       verdict,
       driverId: one(params.driver),
@@ -50,16 +54,20 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
 
   const tabs: { id: Verdict | "all"; label: string; n: number }[] = [
     { id: "all", label: "All", n: counts.sessions },
-    { id: "agent", label: "Agent", n: counts.agent },
-    { id: "human", label: "Human", n: counts.human },
-    { id: "unknown", label: "Unknown", n: counts.unknown },
+    { id: "agent", label: "Agents", n: counts.agent },
+    { id: "human", label: "People", n: counts.human },
+    { id: "unknown", label: "Undecided", n: counts.unknown },
   ];
 
   return (
     <Page>
       <PageHeader
         title="Sessions"
-        description="Every logged-in session, classified as it happens. Open one to see why."
+        description={
+          site.anonymous
+            ? `Every visit to ${site.host}, with who is driving it. Open one to see how it was decided.`
+            : "Every signed-in session, with who is driving it. Open one to see how it was decided."
+        }
         actions={
           <>
             <Segmented label="Time range" items={RANGES.map((x) => ({ href: href(params, { range: x.id }), label: x.id, active: x.id === range }))} />
@@ -68,44 +76,36 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <SearchBox placeholder="Search identity or account" />
-        <SelectFilter name="driver" label="All drivers" options={seenDrivers(now)} />
-        <ToggleFilter name="live" label="Live only" />
-        {accountId && <FilterChip name="account" label={getAccount(accountId)?.name ?? accountId} />}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Segmented
+          label="Who is driving"
+          items={tabs.map((t) => ({
+            key: t.id,
+            href: href(params, { type: t.id === "all" ? null : t.id }),
+            active: t.id === verdict,
+            label: (
+              <>
+                {t.label} <SegCount n={num(t.n)} active={t.id === verdict} />
+              </>
+            ),
+          }))}
+        />
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+          <SearchBox placeholder={site.anonymous ? "Search visitor or session" : "Search person or account"} />
+          <SelectFilter name="driver" label="All agents" options={seenDrivers(site.id, now)} />
+          <ToggleFilter name="live" label="Live only" />
+          {accountId && <FilterChip name="account" label={accountText(accountId, getAccount(accountId)?.name ?? accountId)} />}
+        </div>
       </div>
 
-      <Card>
-        <div className="no-scrollbar flex gap-1 overflow-x-auto border-b border-line px-3" role="tablist" aria-label="Session type">
-          {tabs.map((t) => {
-            const active = t.id === verdict;
-            return (
-              <Link
-                key={t.id}
-                role="tab"
-                aria-selected={active}
-                href={href(params, { type: t.id === "all" ? null : t.id })}
-                scroll={false}
-                className={`relative flex h-11 shrink-0 items-center gap-2 px-2.5 text-[13px] ${active ? "font-medium text-ink" : "text-ink-3 hover:text-ink"}`}
-              >
-                {t.label}
-                <span className={`tabular ${active ? "text-ink-2" : "text-ink-4"}`}>{num(t.n)}</span>
-                {active && <span className="absolute inset-x-2 -bottom-px h-[2px] rounded-full bg-ink" />}
-              </Link>
-            );
-          })}
-        </div>
-        {rows.length ? (
-          <SessionsTable rows={rows} now={now} />
-        ) : (
-          <Empty title="No sessions match">Try a wider time range or clear a filter.</Empty>
-        )}
+      <Panel flush>
+        {rows.length ? <SessionsTable rows={rows} now={now} anonymous={site.anonymous} markSensor={site.demo} /> : <Empty title="No sessions match">Try a wider time range or clear a filter.</Empty>}
         {total > rows.length && (
-          <div className="border-t border-line px-5 py-3 text-[12.5px] text-ink-3">
+          <div className="border-t border-line px-4 py-3 text-[12.5px] text-ink-3">
             Showing the {num(rows.length)} most recent of {num(total)}.
           </div>
         )}
-      </Card>
+      </Panel>
     </Page>
   );
 }

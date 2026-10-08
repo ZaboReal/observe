@@ -35,17 +35,17 @@ export function SearchBox({ placeholder = "Search" }: { placeholder?: string }) 
   }, [value]);
 
   return (
-    <label className="relative flex h-8 w-full items-center sm:w-64">
-      <Search size={14} className="pointer-events-none absolute left-2.5 text-ink-4" />
+    <label className="relative flex h-[34px] w-full items-center sm:w-64">
+      <Search size={14} className="pointer-events-none absolute left-3.5 text-ink-3" />
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-full w-full rounded-lg border border-line bg-canvas pr-7 pl-8 text-[13px] placeholder:text-ink-4 focus:border-ink-3 focus:outline-none"
+        className="h-full w-full rounded-full border-0 bg-sheet pr-8 pl-9 text-[13px] shadow-ring placeholder:text-ink-3 focus:shadow-[0_0_0_1.5px_var(--color-ink)] focus:outline-none"
       />
       {value && (
-        <button type="button" onClick={() => setValue("")} aria-label="Clear search" className="absolute right-2 text-ink-4 hover:text-ink">
+        <button type="button" onClick={() => setValue("")} aria-label="Clear search" className="absolute right-3 text-ink-3 hover:text-ink">
           <X size={14} />
         </button>
       )}
@@ -60,7 +60,7 @@ export function SelectFilter({ name, label, options }: { name: string; label: st
       value={params.get(name) ?? ""}
       onChange={(e) => set({ [name]: e.target.value || null })}
       aria-label={label}
-      className="h-8 rounded-lg border border-line bg-canvas pr-7 pl-2.5 text-[13px] text-ink-2 focus:border-ink-3 focus:outline-none"
+      className="h-[34px] max-w-full rounded-full border-0 bg-sheet pr-8 pl-3.5 text-[13px] text-ink-2 shadow-ring focus:shadow-[0_0_0_1.5px_var(--color-ink)] focus:outline-none"
     >
       <option value="">{label}</option>
       {options.map((o) => (
@@ -80,11 +80,9 @@ export function ToggleFilter({ name, label }: { name: string; label: string }) {
       type="button"
       aria-pressed={on}
       onClick={() => set({ [name]: on ? null : "1" })}
-      className={`inline-flex h-8 items-center gap-2 rounded-lg border px-2.5 text-[13px] transition-colors ${
-        on ? "border-ink bg-ink text-canvas" : "border-line text-ink-2 hover:border-line-2 hover:text-ink"
-      }`}
+      className={`inline-flex h-[34px] items-center gap-2 rounded-full px-3.5 text-[13px] transition-colors ${on ? "bg-ink text-white" : "bg-sheet text-ink-2 shadow-ring hover:text-ink"}`}
     >
-      <span className={`inline-block size-3 rounded-[4px] border ${on ? "border-canvas bg-canvas" : "border-ink-4"}`}>
+      <span className={`inline-block size-3.5 rounded-[5px] ${on ? "bg-white" : "shadow-[inset_0_0_0_1.5px_var(--color-ink-3)]"}`}>
         {on && (
           <svg viewBox="0 0 12 12" className="size-full text-ink" aria-hidden="true">
             <path d="M3 6.2 5 8.2 9 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -103,11 +101,11 @@ export function FilterChip({ name, label }: { name: string; label: string }) {
     <button
       type="button"
       onClick={() => set({ [name]: null })}
-      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink pr-2 pl-2.5 text-[13px]"
+      className="inline-flex h-[34px] items-center gap-1.5 rounded-full bg-green-soft pr-2.5 pl-3.5 text-[13px] font-medium text-green"
       aria-label={`Remove filter ${label}`}
     >
       {label}
-      <X size={13} className="text-ink-3" />
+      <X size={13} />
     </button>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pause, Play } from "lucide-react";
 
 const KEY = "observe.live";
 const INTERVAL = 4_000;
@@ -47,11 +46,12 @@ export function LiveToggle() {
       onClick={toggle}
       aria-pressed={!paused}
       title={paused ? "Resume live updates" : "Pause live updates"}
-      className="inline-flex h-8 items-center gap-2 rounded-lg border border-line bg-canvas pr-2 pl-2.5 text-[12.5px] text-ink-2 transition-colors hover:border-line-2 hover:text-ink"
+      className={`inline-flex h-[34px] items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors ${
+        paused ? "bg-track text-ink-2 hover:text-ink" : "bg-green-soft text-green hover:bg-[#d5ece3]"
+      }`}
     >
-      <span className={`inline-block size-1.5 rounded-full ${paused ? "bg-ink-4" : "live-dot bg-ink"}`} />
+      <span className={`live sm ${paused ? "off" : ""}`} aria-hidden="true" />
       {paused ? "Paused" : "Live"}
-      {paused ? <Play size={13} className="text-ink-3" /> : <Pause size={13} className="text-ink-3" />}
     </button>
   );
 }

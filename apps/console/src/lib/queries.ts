@@ -5,7 +5,8 @@ import { DAY, HOUR, MINUTE, reasonsFor } from "./generate";
 import { exactMatch } from "./passport";
 import { decide } from "./policy";
 import { HISTORY, store } from "./store";
-import type { ActionDef, Driver, EntryLogLine, Reason, Scope, Session, SessionEvent, Verdict } from "./types";
+import { OUTCOME_RANK } from "./format";
+import type { ActionDef, Driver, EntryLogLine, Outcome, Reason, Scope, Session, SessionEvent, Verdict } from "./types";
 
 export type Range = "1h" | "24h" | "7d";
 
@@ -42,7 +43,7 @@ export interface Totals {
   sensitive: number;
 }
 
-function totals(sessions: Session[]): Totals {
+export function totals(sessions: Session[]): Totals {
   const t: Totals = { sessions: sessions.length, human: 0, agent: 0, unknown: 0, takeovers: 0, agentActions: 0, sensitive: 0 };
   for (const s of sessions) {
     t[s.verdict]++;
@@ -61,7 +62,7 @@ export interface SeriesPoint {
 }
 
 /** Sessions started per bucket. Buckets end at `to`, so the last one is complete rather than a partial dip. */
-function series(sessions: Session[], from: number, to: number, bucket: number): SeriesPoint[] {
+export function series(sessions: Session[], from: number, to: number, bucket: number): SeriesPoint[] {
   const n = Math.max(1, Math.round((to - from) / bucket));
   const start = to - n * bucket;
   const points: SeriesPoint[] = Array.from({ length: n }, (_, i) => ({ t: start + i * bucket, human: 0, agent: 0, unknown: 0 }));
@@ -89,6 +90,10 @@ export interface SessionRow {
   lastAt: number;
   live: boolean;
   takeover: boolean;
+  /** When an agent took over from the person, if it did. */
+  handoffAt: number | null;
+  /** The strongest decision the rules would make on this session's agent actions, if it had any. */
+  outcome: Outcome | null;
   last: { route: string; action: string | null; method: string | null; path: string | null; driver: Verdict } | null;
   actions: number;
   sensitive: number;
@@ -100,6 +105,14 @@ export function toRow(s: Session, now: number): SessionRow {
   const events = store.events(s, now);
   const last = events[events.length - 1];
   const lastAction = [...events].reverse().find((e) => e.type === "action");
+  let outcome: Outcome | null = null;
+  if (s.verdict === "agent") {
+    for (const e of events) {
+      if (e.driver !== "agent" || !e.action) continue;
+      const o = decide(s.tier, e.action).outcome;
+      if (outcome === null || OUTCOME_RANK.indexOf(o) < OUTCOME_RANK.indexOf(outcome)) outcome = o;
+    }
+  }
   return {
     id: s.id,
     email: user?.email ?? s.userId,
@@ -115,6 +128,8 @@ export function toRow(s: Session, now: number): SessionRow {
     lastAt: s.lastAt,
     live: s.endedAt > now,
     takeover: s.handoffAt !== null,
+    handoffAt: s.handoffAt === null ? null : s.startedAt + s.handoffAt,
+    outcome,
     last: last
       ? {
           route: last.route,
@@ -131,6 +146,8 @@ export function toRow(s: Session, now: number): SessionRow {
 }
 
 export interface SessionFilter {
+  /** The site whose sessions to list. */
+  siteId: string;
   verdict?: Verdict | "all";
   driverId?: string;
   accountId?: string;
@@ -141,8 +158,9 @@ export interface SessionFilter {
 }
 
 export function listSessions(filter: SessionFilter, now = Date.now()): { rows: SessionRow[]; total: number; counts: Totals } {
+  const { siteId } = filter;
   const { from, to } = bounds(filter.range ?? "24h", now);
-  const all = store.sessions(from, to, now);
+  const all = store.sessions(from, to, now, siteId);
   const q = filter.q?.trim().toLowerCase();
   const matching = all.filter((s) => {
     if (filter.driverId && (s.driverId ?? (s.verdict === "agent" ? UNNAMED_ID : null)) !== filter.driverId) return false;
@@ -178,7 +196,7 @@ export interface DriverStat {
   share: number;
 }
 
-function driverStats(sessions: Session[]): DriverStat[] {
+export function driverStats(sessions: Session[]): DriverStat[] {
   const map = new Map<string, { sessions: number; users: Set<string>; accounts: Set<string>; agentActions: number; sensitive: number; takeovers: number }>();
   let agents = 0;
   for (const s of sessions) {
@@ -215,7 +233,7 @@ export interface ScopeStat {
   count: number;
 }
 
-function scopeStats(sessions: Session[]): ScopeStat[] {
+export function scopeStats(sessions: Session[]): ScopeStat[] {
   return SCOPES.map((sc) => ({
     scope: sc.id,
     label: sc.label,
@@ -224,11 +242,11 @@ function scopeStats(sessions: Session[]): ScopeStat[] {
   }));
 }
 
-export function overview(range: Range, now = Date.now()) {
+export function overview(siteId: string, range: Range, now = Date.now()) {
   const { from, to, bucket, ms } = bounds(range, now);
-  const sessions = store.sessions(from, to, now);
+  const sessions = store.sessions(from, to, now, siteId);
   const current = totals(sessions);
-  const previous = from - ms >= now - HISTORY ? totals(store.sessions(from - ms, from, now)) : null;
+  const previous = from - ms >= now - HISTORY ? totals(store.sessions(from - ms, from, now, siteId)) : null;
   return {
     totals: current,
     previous,
@@ -244,11 +262,11 @@ export function overview(range: Range, now = Date.now()) {
 
 // ───────────────────────── Agents ─────────────────────────
 
-export function agents(range: Range, now = Date.now()) {
+export function agents(siteId: string, range: Range, now = Date.now()) {
   const { from, to } = bounds(range, now);
-  const sessions = store.sessions(from, to, now);
+  const sessions = store.sessions(from, to, now, siteId);
   const stats = driverStats(sessions);
-  const week = store.sessions(now - 7 * DAY, now, now);
+  const week = store.sessions(now - 7 * DAY, now, now, siteId);
   const trend = new Map<string, number[]>();
   for (const s of week) {
     if (s.verdict !== "agent") continue;
@@ -266,21 +284,21 @@ export function agents(range: Range, now = Date.now()) {
 }
 
 /** Filter options: agents seen in the last week, most sessions first. */
-export function seenDrivers(now = Date.now()): { value: string; label: string }[] {
-  return driverStats(store.sessions(now - 7 * DAY, now, now)).map((d) => ({
+export function seenDrivers(siteId: string, now = Date.now()): { value: string; label: string }[] {
+  return driverStats(store.sessions(now - 7 * DAY, now, now, siteId)).map((d) => ({
     value: d.driver?.id ?? UNNAMED_ID,
-    label: d.driver?.name ?? "Unnamed automation",
+    label: d.driver?.name ?? "Unknown automation",
   }));
 }
 
-export function agentDetail(driverId: string, range: Range, now = Date.now()) {
+export function agentDetail(siteId: string, driverId: string, range: Range, now = Date.now()) {
   const driver = driverId === UNNAMED_ID ? null : getDriver(driverId);
   if (driverId !== UNNAMED_ID && !driver) return null;
   const key = driver ? driver.id : null;
   const { from, to, bucket: fine } = bounds(range, now);
   // One driver is a thin slice of traffic, so use wider buckets than the overview to keep the line readable.
   const bucket = fine * 2;
-  const all = store.sessions(from, to, now);
+  const all = store.sessions(from, to, now, siteId);
   const sessions = all.filter((s) => s.verdict === "agent" && s.driverId === key);
   const agentTotal = all.filter((s) => s.verdict === "agent").length;
 
@@ -330,7 +348,7 @@ export interface AccountStat {
   topDriver: string | null;
 }
 
-function accountStats(sessions: Session[]): AccountStat[] {
+export function accountStats(sessions: Session[]): AccountStat[] {
   const map = new Map<string, { users: Set<string>; agentUsers: Set<string>; sessions: number; agentSessions: number; human: number; agent: number; sensitive: number; drivers: Map<string, number> }>();
   for (const s of sessions) {
     const m = map.get(s.accountId) ?? { users: new Set(), agentUsers: new Set(), sessions: 0, agentSessions: 0, human: 0, agent: 0, sensitive: 0, drivers: new Map() };
@@ -366,15 +384,15 @@ function accountStats(sessions: Session[]): AccountStat[] {
         humanHours: m.human / HOUR,
         agentHours: m.agent / HOUR,
         sensitive: m.sensitive,
-        topDriver: top ? (getDriver(top[0])?.name ?? "Unnamed automation") : null,
+        topDriver: top ? (getDriver(top[0])?.name ?? "Unknown automation") : null,
       };
     })
     .sort((x, y) => y.agentHours - x.agentHours);
 }
 
-export function accounts(range: Range, now = Date.now()) {
+export function accounts(siteId: string, range: Range, now = Date.now()) {
   const { from, to } = bounds(range, now);
-  const sessions = store.sessions(from, to, now);
+  const sessions = store.sessions(from, to, now, siteId);
   const rows = accountStats(sessions);
   const humanHours = rows.reduce((n, r) => n + r.humanHours, 0);
   const agentHours = rows.reduce((n, r) => n + r.agentHours, 0);
@@ -391,8 +409,8 @@ export interface RouteActivity {
   sensitive: number;
 }
 
-export function sessionDetail(id: string, now = Date.now()) {
-  const session = store.session(id, now);
+export function sessionDetail(siteId: string, id: string, now = Date.now()) {
+  const session = store.session(id, now, siteId);
   if (!session) return null;
   const events = store.events(session, now);
   const reasons: Reason[] = session.source === "sensor" ? (store.sensor.get(session.id)?.reasons ?? []) : reasonsFor(session);
@@ -449,11 +467,12 @@ function sensorDecision(id: string) {
 /** Most entries one export returns. A week of demo traffic is well under this. */
 export const EXPORT_CAP = 500_000;
 
-export function entryLog(opts: { range: Range; sensitiveOnly?: boolean; driverId?: string; outcome?: string; limit?: number }, now = Date.now()) {
+export function entryLog(opts: { siteId: string; range: Range; sensitiveOnly?: boolean; driverId?: string; outcome?: string; limit?: number }, now = Date.now()) {
+  const { siteId } = opts;
   const { from, to } = bounds(opts.range, now);
-  const sessions = store.sessions(from, to, now).filter((s) => s.verdict === "agent" && (!opts.driverId || (s.driverId ?? UNNAMED_ID) === opts.driverId));
+  const sessions = store.sessions(from, to, now, siteId).filter((s) => s.verdict === "agent" && (!opts.driverId || (s.driverId ?? UNNAMED_ID) === opts.driverId));
   const lines: EntryLogLine[] = [];
-  const counts = { total: 0, admit: 0, slow: 0, request_visa: 0, ask: 0, reroute: 0, bill: 0, refuse: 0 };
+  const counts = { total: 0, admit: 0, slow: 0, request_access: 0, ask: 0, reroute: 0, bill: 0, refuse: 0 };
   for (const s of sessions) {
     store.events(s, now).forEach((e, j) => {
       if (e.driver !== "agent" || !e.action) return;
@@ -484,7 +503,7 @@ export function entryLog(opts: { range: Range; sensitiveOnly?: boolean; driverId
       ...l,
       email: getUser(l.userId)?.email ?? l.userId,
       account: getAccount(l.accountId)?.name ?? l.accountId,
-      driver: getDriver(l.driverId)?.name ?? "Unnamed automation",
+      driver: getDriver(l.driverId)?.name ?? "Unknown automation",
     })),
   };
 }

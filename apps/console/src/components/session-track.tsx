@@ -9,19 +9,7 @@ const RISK_HEIGHT = { low: 10, medium: 18, high: 26, critical: 30 } as const;
  * Session replay as an event plot: who drove each stretch, every action as a tick (taller = more
  * sensitive), and the moment an agent took over. Positions are percentages, so it needs no measuring.
  */
-export function SessionTrack({
-  events,
-  startedAt,
-  endAt,
-  handoffAt,
-  driverName,
-}: {
-  events: SessionEvent[];
-  startedAt: number;
-  endAt: number;
-  handoffAt: number | null;
-  driverName: string | null;
-}) {
+export function SessionTrack({ events, startedAt, endAt, handoffAt, driverName }: { events: SessionEvent[]; startedAt: number; endAt: number; handoffAt: number | null; driverName: string | null }) {
   const span = Math.max(1, endAt - startedAt);
   const at = (t: number) => `${Math.min(100, Math.max(0, (t / span) * 100))}%`;
 
@@ -59,14 +47,14 @@ export function SessionTrack({
               className={`absolute top-0 truncate font-mono text-[11px] text-ink-3 max-sm:max-w-[32%] sm:max-w-[22%] ${p.narrow ? "" : "max-sm:hidden"}`}
               style={{ left: at(p.t) }}
             >
-              <span className="mr-1 inline-block h-2 w-px translate-y-[1px] bg-ink-4" />
+              <span className="mr-1 inline-block h-2 w-px translate-y-[1px] bg-ink-3" />
               {p.route}
             </span>
           ))}
         </div>
 
         {/* Actions lane */}
-        <div className="absolute inset-x-0 top-6 h-[44px] border-b border-line">
+        <div className="absolute inset-x-0 top-6 h-[44px] border-b border-grid">
           {events
             .filter((e) => e.type !== "page")
             .map((e, i) => {
@@ -75,8 +63,8 @@ export function SessionTrack({
               return (
                 <span
                   key={`${e.t}-${i}`}
-                  title={`+${duration(e.t)} · ${e.driver} · ${label}`}
-                  className={`absolute bottom-0 w-[2px] -translate-x-1/2 rounded-t-[1px] ${e.driver === "agent" ? "bg-ink" : e.driver === "human" ? "bg-ink-4" : "bg-line-2"}`}
+                  title={`+${duration(e.t)} · ${e.driver === "human" ? "person" : e.driver === "unknown" ? "undecided" : "agent"} · ${label}`}
+                  className={`absolute bottom-0 w-[2px] -translate-x-1/2 rounded-t-[1px] ${e.driver === "agent" ? "bg-agents" : e.driver === "human" ? "bg-people" : "bg-undecided"}`}
                   style={{ left: at(e.t), height: h }}
                 />
               );
@@ -84,11 +72,11 @@ export function SessionTrack({
         </div>
 
         {/* Driver lane */}
-        <div className="absolute inset-x-0 top-[84px] h-3 overflow-hidden rounded-full bg-wash-2">
+        <div className="absolute inset-x-0 top-[84px] h-2.5 overflow-hidden rounded-full bg-bg-2">
           {runs.map((r) => (
             <span
               key={r.from}
-              className={`absolute inset-y-0 ${r.driver === "agent" ? "bg-ink" : r.driver === "human" ? "bg-human" : "bg-[repeating-linear-gradient(45deg,var(--color-unknown)_0_3px,var(--color-line-2)_3px_4px)]"}`}
+              className={`absolute inset-y-0 ${r.driver === "agent" ? "bg-agents" : r.driver === "human" ? "bg-people" : "bg-undecided"}`}
               style={{ left: at(r.from), width: `calc(${at(r.to)} - ${at(r.from)} - 2px)` }}
             />
           ))}
@@ -96,15 +84,16 @@ export function SessionTrack({
 
         {/* Handoff marker */}
         {handoffAt !== null && (
-          <div className="absolute top-5 h-[94px] w-px border-l border-dashed border-ink" style={{ left: at(handoffAt) }}>
-            <span className={`absolute -bottom-0.5 text-[11.5px] font-medium whitespace-nowrap ${handoffAt / span > 0.6 ? "right-1.5" : "left-1.5"}`}>
-              {driverName ?? "Agent"} took over · <Time t={startedAt + handoffAt} />
+          <div className="absolute top-5 h-[94px] w-px bg-ink" style={{ left: at(handoffAt) }}>
+            <span className={`absolute -bottom-0.5 font-mono text-[11px] whitespace-nowrap text-ink-2 ${handoffAt / span > 0.5 ? "right-1.5" : "left-1.5"}`}>
+              <span className="max-sm:hidden">{driverName ?? "Agent"} </span>
+              <span className="sm:hidden">agent </span>took over <Time t={startedAt + handoffAt} />
             </span>
           </div>
         )}
 
         {/* Axis */}
-        <div className="absolute inset-x-0 bottom-0 h-4 text-[11px] text-ink-4">
+        <div className="absolute inset-x-0 bottom-0 h-4 font-mono text-[10.5px] text-ink-3">
           <span className="absolute left-0">
             <Time t={startedAt} />
           </span>
@@ -119,13 +108,18 @@ export function SessionTrack({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] text-ink-3">
+      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] text-ink-2">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-4 rounded-full bg-human" /> Person driving
+          <span className="inline-block size-[9px] rounded-[2px] bg-people" /> Person driving
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-4 rounded-full bg-ink" /> Agent driving
+          <span className="inline-block size-[9px] rounded-[2px] bg-agents" /> Agent driving
         </span>
+        {runs.some((r) => r.driver === "unknown") && (
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block size-[9px] rounded-[2px] bg-undecided" /> Undecided
+          </span>
+        )}
         <span className="flex items-center gap-1.5">
           <span className="flex items-end gap-[3px]">
             <span className="inline-block h-[6px] w-[2px] bg-ink-3" />

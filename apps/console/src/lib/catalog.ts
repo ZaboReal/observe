@@ -94,6 +94,15 @@ export const ACTIONS: ActionDef[] = [
   { id: "delete_invoices", label: "Bulk delete invoices", method: "DELETE", path: "/api/invoices", route: "/invoices", scope: "delete", risk: "critical" },
 ];
 
+/**
+ * Actions real sites mark with `sensor.protect(id)` that the demo never generates. arzach.ai (the pilot) marks
+ * signing up for early access and downloading a paper.
+ */
+export const SITE_ACTIONS: ActionDef[] = [
+  { id: "sign_up", label: "Sign up for early access", method: "POST", path: "/signup", route: "/", scope: "send", risk: "medium" },
+  { id: "download_paper", label: "Download a paper", method: "GET", path: "/assets/papers/:file", route: "/research/", scope: "export", risk: "low" },
+];
+
 const actionById = new Map(ACTIONS.map((a) => [a.id, a]));
 
 export function getAction(id: string): ActionDef {

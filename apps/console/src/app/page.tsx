@@ -1,168 +1,236 @@
-import { AreaChart } from "@/components/area-chart";
-import { BarList, HoursBars } from "@/components/charts";
+import Link from "next/link";
+
+import { HoursBars, ShareList } from "@/components/charts";
+import { ChartLegend, ColumnChart } from "@/components/column-chart";
 import { LiveToggle } from "@/components/live";
+import { LiveFeed } from "@/components/live-feed";
 import { SessionsTable } from "@/components/sessions-table";
-import { Card, CardHeader, CardLink, LiveDot, Page, PageHeader, RiskTag, Segmented, Stat, Stats, VerdictKey } from "@/components/ui";
+import { Empty, Panel, PanelLink, Segmented, ShareBar, Tile, Tiles, buttonClass } from "@/components/ui";
 import { hours, num, pct } from "@/lib/format";
-import { RANGES, listSessions, overview, parseRange } from "@/lib/queries";
-import { SITE } from "@/lib/site";
+import { parseRange } from "@/lib/queries";
+import { currentSite } from "@/lib/current-site";
+import { syncStore } from "@/lib/sync";
+import type { Verdict } from "@/lib/types";
+import { dashboard } from "@/lib/views";
 
 export const dynamic = "force-dynamic";
 
-export default async function OverviewPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const range = parseRange((await searchParams).range);
-  const r = RANGES.find((x) => x.id === range)!;
-  const now = Date.now();
-  const data = overview(range, now);
-  const recent = listSessions({ range: "1h", limit: 8 }, now);
-  const t = data.totals;
+const PREVIOUS: Record<string, string> = { "1h": "the hour before", "24h": "the day before", "7d": "the week before" };
 
-  const agentShare = t.sessions ? t.agent / t.sessions : 0;
-  const prevShare = data.previous && data.previous.sessions ? data.previous.agent / data.previous.sessions : null;
-  const shift = prevShare === null ? null : (agentShare - prevShare) * 100;
-  const sensitive = data.scopes.filter((s) => s.scope !== "view");
-  const maxHours = Math.max(...data.accounts.map((a) => Math.max(a.humanHours, a.agentHours)), 0.1);
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await syncStore();
+  const site = await currentSite();
+  const range = parseRange((await searchParams).range);
+  const now = Date.now();
+  const d = dashboard(site.id, range, now, { routes: site.anonymous });
+  const t = d.totals;
+  const period = d.range.label.toLowerCase();
+
+  const shift = d.previousShare === null ? null : (d.share - d.previousShare) * 100;
+  const blocked = d.outcomes.refuse;
+  const asked = d.outcomes.ask + d.outcomes.request_access;
+  const series: Verdict[] = t.unknown ? ["human", "agent", "unknown"] : ["human", "agent"];
+  const maxHours = Math.max(...d.accounts.map((a) => Math.max(a.humanHours, a.agentHours)), 0.1);
+  const agentScopes = d.scopes.filter((s) => s.count > 0);
+  const maxScope = Math.max(...d.scopes.map((s) => s.count), 1);
 
   return (
-    <Page>
-      <PageHeader
-        title="Overview"
-        description={
-          <>
-            Who is driving logged-in sessions on <span className="font-mono text-[13px] text-ink-2">{SITE.host}</span>
-          </>
-        }
-        actions={
-          <>
-            <Segmented label="Time range" items={RANGES.map((x) => ({ href: `/?range=${x.id}`, label: x.id, active: x.id === range }))} />
-            <LiveToggle />
-          </>
-        }
-      />
+    <div className="mx-auto w-full max-w-[1240px] px-4 pt-5 pb-16 md:px-8 md:pt-8">
+      <header className="mb-5 flex flex-col gap-4 md:mb-6 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
+          <div className="eyebrow mb-2.5">Overview</div>
+          <h1 className="text-[28px] leading-[1.08] font-medium tracking-[-0.035em] break-words md:text-[34px]">
+            Who&apos;s driving <em>{site.host}</em>
+          </h1>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Segmented label="Time range" items={(["1h", "24h", "7d"] as const).map((id) => ({ href: `/?range=${id}`, label: id, active: id === range }))} />
+          <LiveToggle />
+        </div>
+      </header>
 
-      <Card>
-        <Stats>
-          <Stat label="Sessions" value={num(t.sessions)} sub={r.label.toLowerCase()} />
-          <Stat label="Human" mark={<VerdictKey verdict="human" />} value={num(t.human)} sub={pct(t.human, t.sessions)} />
-          <Stat
-            label="Agent"
-            mark={<VerdictKey verdict="agent" />}
-            value={num(t.agent)}
+      <div className="grid gap-3">
+        <Tiles>
+          <Tile label="Sessions now" value={num(d.live.sessions)} sub={d.live.sessions ? `${num(d.live.agents)} driven by agents` : "Nobody on the site right now"} />
+          <Tile
+            label="Driven by agents"
+            value={t.sessions ? pct(t.agent, t.sessions) : "–"}
             sub={
-              <>
-                {pct(t.agent, t.sessions)}
-                {shift !== null && (
-                  <span className="ml-2 text-ink-2" title={`Agent share vs the previous ${r.label.toLowerCase().replace("last ", "")}`}>
-                    {shift >= 0 ? "↑" : "↓"} {Math.abs(shift).toFixed(1)} pts
-                  </span>
-                )}
-              </>
+              !t.sessions
+                ? `No sessions ${period}`
+                : shift !== null && Math.abs(shift) >= 0.05
+                  ? `${shift > 0 ? "+" : "−"}${Math.abs(shift).toFixed(1)} points on ${PREVIOUS[range]}`
+                  : `of ${num(t.sessions)} ${t.sessions === 1 ? "session" : "sessions"}, ${period}`
             }
           />
-          <Stat label="Unknown" mark={<VerdictKey verdict="unknown" />} value={num(t.unknown)} sub={pct(t.unknown, t.sessions)} />
-        </Stats>
-        <div className="border-t border-line px-2 pt-4 pb-2 md:px-3">
-          <AreaChart points={data.series} bucket={data.bucket} from={now - r.ms} to={now} />
-        </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line px-5 py-3 text-[12.5px] text-ink-3">
-          <span className="flex items-center gap-2">
-            <VerdictKey verdict="agent" /> Agent
-          </span>
-          <span className="flex items-center gap-2">
-            <VerdictKey verdict="human" /> Human
-          </span>
-          <span className="flex items-center gap-2">
-            <VerdictKey verdict="unknown" /> Unknown: too little evidence to call
-          </span>
-          <span className="ml-auto">Sessions started per {data.bucket >= 3_600_000 ? `${data.bucket / 3_600_000} hours` : `${data.bucket / 60_000} minutes`}</span>
-        </div>
-      </Card>
-
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader title="Right now" description="Sessions active in the last few minutes" />
-          <div className="px-5 py-5">
-            <div className="flex items-baseline gap-2">
-              <span className="text-[40px] leading-none font-semibold tracking-[-0.03em]">{num(data.liveAgents)}</span>
-              <span className="text-[13px] text-ink-3">agents acting</span>
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-[13px] text-ink-3">
-              <LiveDot />
-              {num(data.live)} live sessions in total
-            </div>
-          </div>
-          <dl className="grid grid-cols-2 border-t border-line">
-            <div className="border-r border-line px-5 py-4">
-              <dt className="text-[12.5px] text-ink-3">Takeovers</dt>
-              <dd className="mt-1 text-[20px] font-semibold tracking-[-0.02em]">{num(t.takeovers)}</dd>
-              <dd className="mt-0.5 text-[12px] text-ink-3">person, then agent</dd>
-            </div>
-            <div className="px-5 py-4">
-              <dt className="text-[12.5px] text-ink-3">Sensitive actions</dt>
-              <dd className="mt-1 text-[20px] font-semibold tracking-[-0.02em]">{num(t.sensitive)}</dd>
-              <dd className="mt-0.5 text-[12px] text-ink-3">by agents</dd>
-            </div>
-          </dl>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader title="Agents" description="Share of agent sessions by driver" action={<CardLink href={`/agents?range=${range}`}>All agents</CardLink>} />
-          <BarList
-            rows={data.drivers.slice(0, 6).map((d) => ({
-              key: d.driver?.id ?? "unnamed",
-              label: d.driver?.name ?? "Unnamed automation",
-              sub: d.driver?.provider,
-              value: d.sessions,
-              display: (
-                <>
-                  {num(d.sessions)} <span className="ml-1.5 inline-block w-9 text-right text-ink-3">{pct(d.sessions, t.agent)}</span>
-                </>
-              ),
-              muted: !d.driver,
-              href: `/agents/${d.driver?.id ?? "unnamed"}?range=${range}`,
-            }))}
+          <Tile
+            label="Agents seen"
+            value={num(d.agentsSeen)}
+            sub={
+              site.anonymous
+                ? `across ${num(d.peopleWithAgents)} ${d.peopleWithAgents === 1 ? "visitor" : "visitors"}`
+                : `across ${num(d.accountsWithAgents)} ${d.accountsWithAgents === 1 ? "account" : "accounts"}`
+            }
           />
-        </Card>
+          <Tile
+            label="Would be blocked"
+            value={num(blocked)}
+            sub={d.agentActions ? `${asked ? `${num(asked)} more would ask first. ` : ""}Observe mode: none blocked.` : "No agent actions yet. Observe mode: nothing is blocked."}
+          />
+        </Tiles>
+
+        <div className="grid gap-3 lg:grid-cols-[1.7fr_1fr]">
+          <Panel
+            title="People and agents"
+            description={`Sessions started ${d.chart.words}, ${period}`}
+            action={
+              <div className="hidden pt-0.5 sm:block">
+                <ChartLegend series={series} />
+              </div>
+            }
+          >
+            <div className="mb-2 sm:hidden">
+              <ChartLegend series={series} />
+            </div>
+            <ColumnChart
+              points={d.chart.points}
+              bucket={d.chart.bucket}
+              from={now - d.range.ms}
+              to={now}
+              series={series}
+              caption={`Sessions started ${d.chart.words}, ${period}: people, agents${t.unknown ? " and undecided" : ""}`}
+            />
+            {t.unknown > 0 && <p className="mt-1 text-[12px] text-ink-3">Undecided: {num(t.unknown)} sessions with too little evidence to call yet.</p>}
+          </Panel>
+
+          <Panel title="Top agents" description="Share of agent sessions" action={<PanelLink href={`/agents?range=${range}`}>All</PanelLink>}>
+            {d.topAgents.length ? (
+              <>
+                <ShareList
+                  rows={d.topAgents.slice(0, 6).map((a) => ({
+                    key: a.id,
+                    label: a.name,
+                    share: a.share,
+                    href: `/agents/${a.id}?range=${range}`,
+                  }))}
+                  max={d.topAgents[0]!.share}
+                />
+                {d.topAgents.length > 6 && <p className="mt-2 px-2 text-[12px] text-ink-3">and {d.topAgents.length - 6} more</p>}
+              </>
+            ) : (
+              <Empty title="No agents yet">No session {period} was driven by an agent.</Empty>
+            )}
+          </Panel>
+        </div>
+
+        <Panel
+          title="Live activity"
+          description={
+            d.feed.kind === "actions"
+              ? "Agent actions as they happen, with what your rules would do. Observe mode: logged, not enforced."
+              : "Pages agents open, as they happen, with what your rules would do. Observe mode: logged, not enforced."
+          }
+          action={<PanelLink href={`/activity?range=${range}`}>Activity</PanelLink>}
+        >
+          {d.feed.rows.length ? (
+            <LiveFeed rows={d.feed.rows} showFor />
+          ) : (
+            <Empty
+              title="No agent actions yet"
+              action={
+                <Link href="/setup" className={buttonClass("ghost")}>
+                  Mark sensitive actions
+                </Link>
+              }
+            >
+              Actions show up here once an agent exports, edits or invites something your app marks with <span className="font-mono text-[12px]">sensor.protect()</span>.
+            </Empty>
+          )}
+        </Panel>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <Panel
+            title="What agents did"
+            description={`Agent actions by kind, ${period}`}
+            action={agentScopes.length ? <PanelLink href={`/activity?range=${range}&sensitive=1`}>Sensitive only</PanelLink> : undefined}
+          >
+            {agentScopes.length ? (
+              <ul className="grid gap-0.5">
+                {d.scopes.map((s) => (
+                  <li key={s.scope} className="grid grid-cols-[minmax(0,1fr)_minmax(56px,30%)_52px] items-center gap-3 px-2 py-[7px]">
+                    <span className={`truncate text-[13.5px] ${s.count ? "" : "text-ink-3"}`}>{s.label}</span>
+                    <ShareBar value={s.count} max={maxScope} />
+                    <span className="text-right text-[13px] tabular">{num(s.count)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty title="No agent actions yet">
+                Exports, edits and invites show up here once your app marks them with <span className="font-mono text-[12px]">sensor.protect()</span>.
+              </Empty>
+            )}
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-line px-2 pt-3 text-[13px]">
+              <span className="text-ink-2">Agent took over from a person</span>
+              <span className="font-medium tabular">
+                {num(t.takeovers)} {t.takeovers === 1 ? "session" : "sessions"}
+              </span>
+            </div>
+          </Panel>
+
+          {site.anonymous || !d.accounts.length ? (
+            <Panel title="Where agents go" description={`Pages agents opened most, ${period}`}>
+              {d.routes.length ? (
+                <ul className="grid gap-0.5">
+                  {d.routes.map((r) => (
+                    <li key={r.route} className="grid grid-cols-[minmax(0,1fr)_minmax(56px,30%)_72px] items-center gap-3 px-2 py-[7px]">
+                      <span className="truncate font-mono text-[12.5px]">{r.route}</span>
+                      <ShareBar value={r.views} max={d.routes[0]!.views} />
+                      <span className="text-right text-[13px] tabular">
+                        {num(r.views)} {r.views === 1 ? "view" : "views"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty title="No agents yet">Pages show up here as soon as an agent opens one.</Empty>
+              )}
+            </Panel>
+          ) : (
+            <Panel title="Agent time by account" description="Hours on the same logins: people, then agents" action={<PanelLink href={`/accounts?range=${range}`}>Accounts</PanelLink>}>
+              <ul className="grid gap-0.5">
+                {d.accounts.map((a) => (
+                  <li key={a.id}>
+                    <Link
+                      href={`/sessions?account=${a.id}`}
+                      className="grid grid-cols-[minmax(0,1fr)_82px] items-center gap-x-4 gap-y-2 rounded-lg px-2 py-2 transition-colors hover:bg-tile sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_82px]"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13.5px]">{a.name}</span>
+                        <span className="block truncate text-[12px] text-ink-3">{a.topDriver ?? "No agents"}</span>
+                      </span>
+                      <span className="order-last col-span-2 sm:order-none sm:col-span-1">
+                        <HoursBars human={a.humanHours} agent={a.agentHours} max={maxHours} />
+                      </span>
+                      <span className="text-right text-[12px] leading-[1.4] text-ink-3 tabular">
+                        <span className="block">{hours(a.humanHours)} people</span>
+                        <span className="block text-ink">{hours(a.agentHours)} agents</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+        </div>
+
+        <Panel title="Latest sessions" description={`Started ${period}`} action={<PanelLink href={`/sessions?range=${range}`}>All sessions</PanelLink>} flush>
+          {d.latest.length ? (
+            <SessionsTable rows={d.latest} now={now} anonymous={site.anonymous} markSensor={site.demo} />
+          ) : (
+            <Empty title="No sessions yet">Sessions appear here as soon as the sensor reports one.</Empty>
+          )}
+        </Panel>
       </div>
-
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="What agents did" description="Agent actions by scope. Everything except view is sensitive." action={<CardLink href={`/log?range=${range}&sensitive=1`}>Entry log</CardLink>} />
-          <ul className="divide-y divide-line">
-            {[data.scopes[0]!, ...sensitive].map((s) => (
-              <li key={s.scope} className="grid grid-cols-[1fr_auto_64px] items-center gap-4 px-5 py-2.5">
-                <span className={`text-[13.5px] ${s.scope === "view" ? "text-ink-3" : ""}`}>{s.label}</span>
-                <RiskTag risk={s.risk} />
-                <span className="text-right text-[13px] tabular">{num(s.count)}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <Card>
-          <CardHeader title="Agent time by account" description="Hours on the same logins: people, then agents" action={<CardLink href={`/accounts?range=${range}`}>All accounts</CardLink>} />
-          <ul className="divide-y divide-line">
-            {data.accounts.map((a) => (
-              <li key={a.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_72px] items-center gap-4 px-5 py-3">
-                <div className="min-w-0">
-                  <div className="truncate text-[13.5px]">{a.name}</div>
-                  <div className="truncate text-[12px] text-ink-3">{a.topDriver ?? "No agents"}</div>
-                </div>
-                <HoursBars human={a.humanHours} agent={a.agentHours} max={maxHours} />
-                <div className="text-right text-[12px] leading-[1.35] text-ink-3 tabular">
-                  <div>{hours(a.humanHours)} human</div>
-                  <div className="text-ink">{hours(a.agentHours)} agent</div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </div>
-
-      <Card className="mt-5">
-        <CardHeader title="Latest sessions" description="Started in the last hour" action={<CardLink href="/sessions">All sessions</CardLink>} />
-        <SessionsTable rows={recent.rows} now={now} compact />
-      </Card>
-    </Page>
+    </div>
   );
 }

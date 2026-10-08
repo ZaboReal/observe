@@ -35,7 +35,7 @@ To check it, `tools/check` drove Playwright, Puppeteer and Selenium through the 
 
 ## Marker check: classic frameworks
 
-The registry lists markers for 48 agents, mostly read from each product's code; only a handful had been seen live. The second run tested every classic framework we can run here, as shipped, three times each (24 sessions).
+The registry lists markers for 48 agents, mostly read from each product's code; only a handful had been seen live. The second run tested every classic framework we can run here, as shipped, three times each (24 sessions). WebdriverIO, agent-browser and Chrome DevTools MCP were caught but named after the library underneath, so they got new markers (Oct 8) and were run three times each again; the table shows those later runs.
 
 | Framework | Caught | Named | Own marker seen | What named it |
 | --- | --- | --- | --- | --- |
@@ -44,20 +44,38 @@ The registry lists markers for 48 agents, mostly read from each product's code; 
 | nodriver | 3/3 | 3/3 | 3/3 | Its click marker and keyframes |
 | Cypress | 3/3 | 3/3 | 3/3 | `window.Cypress` |
 | Playwright | 3/3 | 3/3 | 0/3 | Jev, from click and typing mechanics (Playwright 1.53+ injects no globals) |
-| WebdriverIO | 3/3 | 0/3 | 0/3 | Called Puppeteer |
-| Vercel agent-browser | 3/3 | 0/3 | 0/3 | Called Puppeteer |
-| Chrome DevTools MCP | 3/3 | 0/3 | 0/3 | Called Puppeteer (it is built on Puppeteer) |
+| WebdriverIO | 3/3 | 3/3 | 3/3 | The `[WDIO]` wrappers it puts around `attachShadow` and `customElements.define` (was: called Selenium or Puppeteer) |
+| Chrome DevTools MCP | 3/3 | 3/3 | 3/3 | Its DOM-settle wait in the call stack (was: called Puppeteer, which it is built on) |
+| Vercel agent-browser | 3/3 | 3/3 | 3/3 | Jev, from a hint (`window.ModelContext`) and its fill and select mechanics; no exact marker (was: called Puppeteer) |
 
 - **Every session was caught,** by `navigator.webdriver` or the HeadlessChrome user agent, which fired in every headless run. That verifies Headless Chrome too: 9 of the 11 classic entries are now confirmed live. PhantomJS and Nightmare are abandoned and were not run.
-- **Three registry entries need new markers.** WebdriverIO's globals, agent-browser's recording cursor and Chrome DevTools MCP's `__dtmcp` only appear in special modes, so in normal use these tools are caught as automation but named after the library underneath.
+- **Three registry entries had markers that only appear in special modes** (WebdriverIO's globals, agent-browser's recording cursor, Chrome DevTools MCP's `__dtmcp`), so in normal use the tools were named after the library underneath (0 of 9). A probe page that records what each tool leaves in the page, compared with plain Chrome, Puppeteer and Selenium, found what they do leave:
+  - **WebdriverIO 10** drives Chrome over BiDi by default, and its preload script replaces `attachShadow` and `customElements.define` with wrappers that log `[WDIO]`, from page start. The sensor now reads the source of wrapped built-ins (decisive). It also shows ChromeDriver's `cdc_` globals, as Selenium does, and a global `__name` helper (a naming hint only).
+  - **Chrome DevTools MCP 1.10** starts a MutationObserver in the page after every action, and Puppeteer's source URL for that code carries the MCP's own path (`pptr:evaluateHandle;WaitForHelper.waitForStableDom`). The sensor now reads the caller's stack when `MutationObserver.observe` is called (decisive). It also shows Puppeteer's globals, and headless runs report a 3840×2160 screen.
+  - **agent-browser 0.38** leaves no exact marker with snapshot refs or CSS selectors, which is how agents usually drive it. Its `data-agent-browser-located` tag appears only with `find text`, `find label` and similar locators; the registry now lists it. It was named from a hint (it launches Chrome with WebMCP testing on, so `window.ModelContext` exists where stable Chrome 154 has it off) and its mechanics (an untrusted `input` then the whole value in one insert; a select that fires only `change`). Jev named it at 95–97%, but the hint stops meaning anything once Chrome turns WebMCP on by default.
+- **A product now outranks the library under it.** Registry entries can say what they are built on (Chrome DevTools MCP on Puppeteer, WebdriverIO on ChromeDriver). When the product's own decisive marker is seen, the console and the sensor's rules count the library's markers towards the product rather than naming the library. Plain Puppeteer and Selenium runs are still named Puppeteer and Selenium.
 - **Edge case:** a person clicking inside a browser that automation launched (an agent handing over for a login, a test recorder) also shows these markers and counts as an agent. That is deliberate; see the check tool's README.
+
+## Consumer agent: the Claude desktop app's browser
+
+Oct 8 · three runs of the demo's five tasks, driven by Claude through the desktop app's built-in browser pane, the way an agent uses it. Claude in Chrome was not installed in the Chrome on this machine, so it was not run.
+
+| Run | How the agent read the page | Final | Decided by | Jev |
+| --- | --- | --- | --- | --- |
+| 1 | Accessibility tree and element refs (its normal mode) | Agent, Anthropic browser tooling | Exact match: `__claudeElementMap`, `__claudeRefCounter`, `__generateAccessibilityTree` | 98–99% agent, same product |
+| 2 | Same | Agent, Anthropic browser tooling | Exact match | 98% agent, same product |
+| 3 | Screenshots only, clicking by coordinates | Agent, **named Playwright (wrong)** | Jev | 98% agent |
+
+- **Caught 3 of 3.** When the agent reads the page through its accessibility tree, the pane injects its element map into the page and the sensor names it at once.
+- **Vision-only still caught, but misnamed.** With screenshots and coordinate clicks there is nothing on the page. Jev called it an agent from behaviour alone (zero-pressure presses, the pointer jumping straight to each target, text arriving with no key presses, two tabs reporting focus at once), then picked the closest product it knows. The registry describes its mechanics, but they look like Playwright's, so nothing separates the two yet.
+- The same run on a copy of arzach.ai with its real headers (CSP `script-src 'self'`) was caught the same way, and the paper download was logged as an action.
 
 ## What this does not show yet
 
 - **People.** No human sessions are in this run, so it says nothing yet about how often a real person would be wrongly flagged. That is the number that matters most.
-- **Consumer agents and AI frameworks.** Claude in Chrome, Comet, ChatGPT/Codex, Gemini in Chrome and the other consumer agents need to be run by hand; the 15 AI agent frameworks (browser-use, Skyvern, Magnitude and others) need an LLM API key.
+- **Most consumer agents and the AI frameworks.** Only the Claude desktop app's browser has been run. Claude in Chrome, Comet, ChatGPT/Codex, Gemini in Chrome and the others need installing and running by hand; the 15 AI agent frameworks (browser-use, Skyvern, Magnitude and others) need an LLM API key.
 - **Scale.** 44 scripted sessions on one page is a sanity check, not a benchmark.
 
 ## Next
 
-Run the consumer agents and 30–50 people through the demo page, then `pnpm check:report`. Instructions: [tools/check/README.md](../tools/check/README.md).
+Run the consumer agents and 30–50 people through the demo page, then `pnpm check:report`. Instructions: [tools/check/README.md](../tools/check/README.md). The arzach.ai pilot ([arzach-pilot.md](arzach-pilot.md)) adds real visitors.

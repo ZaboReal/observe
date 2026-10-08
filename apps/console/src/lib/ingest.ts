@@ -1,7 +1,8 @@
 import "server-only";
 
 import { RULES, type RuleDef } from "@observe/sensor";
-import { ACTIONS, registerUser } from "./catalog";
+import { ACTIONS, SITE_ACTIONS, registerUser } from "./catalog";
+import type { BatchMeta } from "./db";
 import { compactAction, type CompactAction } from "./evidence";
 import { MINUTE, summarise } from "./generate";
 import { resolvePassport } from "./passport";
@@ -188,12 +189,16 @@ export function parseBatch(v: unknown): Batch | null {
 
 // ───────────────────────── Ingest ─────────────────────────
 
-export function ingest(batch: Batch, now: number): void {
+/** Agents that sign their requests name themselves in `Signature-Agent`; the ones the registry knows. */
+const SIGNATURE_AGENTS: [RegExp, string][] = [[/chatgpt\.com|openai\.com/i, "chatgpt-agent"]];
+
+export function ingest(batch: Batch, now: number, meta: BatchMeta, siteId: string): void {
   evict(now);
   const span = timeSpan(batch.records);
   let rec = store.sensor.get(batch.sessionId);
   if (!rec) {
     rec = {
+      site: siteId,
       session: {
         id: batch.sessionId,
         userId: batch.userId ?? `device:${batch.deviceId}`,
@@ -228,6 +233,7 @@ export function ingest(batch: Batch, now: number): void {
       actionKeys: new Set(),
       observations: new Map(),
       rules: null,
+      client: { ua: null, country: null, signatureAgent: null },
       jev: null,
       jevStatus: { inFlight: false, at: 0, key: "", error: null },
     };
@@ -235,6 +241,7 @@ export function ingest(batch: Batch, now: number): void {
   }
   const s = rec.session;
   if (batch.label) rec.label = batch.label;
+  applyMeta(rec, meta);
   if (batch.userId) s.userId = batch.userId;
   if (batch.accountId) s.accountId = batch.accountId;
   registerUser(s.userId, null, s.accountId);
@@ -296,6 +303,27 @@ export function ingest(batch: Batch, now: number): void {
   s.endedAt = now + IDLE;
   s.lastAt = s.startedAt + (rec.events[rec.events.length - 1]?.t ?? 0);
   rec.lastSeen = now;
+}
+
+/**
+ * Keep what the server saw about the request. A `Signature-Agent` header is the agent saying it signs its
+ * requests (Web Bot Auth); it is recorded as page-level evidence and, for agents the registry knows, names them.
+ */
+function applyMeta(rec: SensorRecord, meta: BatchMeta) {
+  const c = rec.client;
+  if (meta.ua) c.ua = meta.ua.slice(0, 300);
+  if (meta.country) c.country = meta.country.slice(0, 8);
+  if (!meta.signatureAgent) return;
+  c.signatureAgent = meta.signatureAgent.slice(0, LIMITS.label);
+  const driver = SIGNATURE_AGENTS.find(([re]) => re.test(c.signatureAgent!))?.[1];
+  rec.observations.set("server.signature-agent", {
+    id: "server.signature-agent",
+    label: "Request says it comes from a signed agent",
+    detail: `Signature-Agent: ${c.signatureAgent}`,
+    robustness: "high",
+    decisive: Boolean(driver),
+    drivers: driver ? [driver] : [],
+  });
 }
 
 /** Append in time order. Returns false when the session is full. */
@@ -385,7 +413,7 @@ const SCOPE_HINTS: [RegExp, Scope][] = [
 
 /** Map the id passed to `sensor.protect()` onto a catalogued action, or describe it from its name. */
 function actionFor(id: string, route: string): ActionDef {
-  const known = ACTIONS.find((a) => a.id === id);
+  const known = ACTIONS.find((a) => a.id === id) ?? SITE_ACTIONS.find((a) => a.id === id);
   if (known) return known;
   const scope = SCOPE_HINTS.find(([re]) => re.test(id.toLowerCase()))?.[1] ?? "view";
   const risk = scope === "delete" ? "critical" : scope === "pay" || scope === "settings" ? "high" : scope === "view" ? "low" : "medium";

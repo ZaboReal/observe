@@ -3,14 +3,17 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
 
-import { AreaChart } from "@/components/area-chart";
-import { BarList } from "@/components/charts";
+import { ShareList } from "@/components/charts";
+import { ColumnChart } from "@/components/column-chart";
 import { LiveToggle } from "@/components/live";
 import { SessionsTable } from "@/components/sessions-table";
-import { Card, CardHeader, CardLink, Empty, Method, Mono, Page, PageHeader, RiskTag, Segmented, Stat, Stats, TierTag } from "@/components/ui";
+import { Avatar, Empty, Method, Mono, Page, Panel, PanelLink, Pill, RiskTag, Segmented, Tile, Tiles, TierTag } from "@/components/ui";
 import { getDriver } from "@/lib/catalog";
 import { KIND_LABEL, hours, num, pct } from "@/lib/format";
 import { RANGES, agentDetail, parseRange } from "@/lib/queries";
+import { currentSite } from "@/lib/current-site";
+import { syncStore } from "@/lib/sync";
+import { ruleSummary } from "@/lib/views";
 
 export const dynamic = "force-dynamic";
 
@@ -18,100 +21,125 @@ type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<str
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  return { title: id === "unnamed" ? "Unnamed automation" : (getDriver(id)?.name ?? "Agent") };
+  return { title: id === "unnamed" ? "Unknown automation" : (getDriver(id)?.name ?? "Agent") };
 }
 
+const WORDS: Record<string, string> = { "1h": "every 4 minutes", "24h": "every hour", "7d": "every 8 hours" };
+
 export default async function AgentPage({ params, searchParams }: Props) {
+  await syncStore();
+  const site = await currentSite();
   const { id } = await params;
   const range = parseRange((await searchParams).range);
   const r = RANGES.find((x) => x.id === range)!;
   const now = Date.now();
-  const d = agentDetail(id, range, now);
+  const d = agentDetail(site.id, id, range, now);
   if (!d) notFound();
-  const name = d.driver?.name ?? "Unnamed automation";
+  const name = d.driver?.name ?? "Unknown automation";
   const s = d.stat;
+  const tier = d.driver?.tier ?? "unknown-automation";
+  const rules = ruleSummary(tier);
+  const maxAccount = Math.max(...d.accounts.map((a) => a.agentHours), 0.01);
+  const period = r.label.toLowerCase();
 
   return (
     <Page>
-      <Link href={`/agents?range=${range}`} className="mb-5 inline-flex items-center gap-1.5 text-[13px] text-ink-3 hover:text-ink">
+      <Link href={`/agents?range=${range}`} className="mb-5 inline-flex items-center gap-1.5 text-[13px] text-ink-2 hover:text-ink">
         <ArrowLeft size={14} /> Agents
       </Link>
-      <PageHeader
-        title={name}
-        description={
-          <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>{d.driver ? `${d.driver.provider} · ${KIND_LABEL[d.driver.kind]}` : "Clearly automated, but no known product matches"}</span>
-            <TierTag tier={d.driver?.tier ?? "unknown-automation"} />
-          </span>
-        }
-        actions={
-          <>
-            <Segmented label="Time range" items={RANGES.map((x) => ({ href: `/agents/${id}?range=${x.id}`, label: x.id, active: x.id === range }))} />
-            <LiveToggle />
-          </>
-        }
-      />
 
-      <Card>
-        <Stats cols={5}>
-          <Stat label="Sessions" value={num(s?.sessions ?? 0)} sub={r.label.toLowerCase()} />
-          <Stat label="Share of agents" value={pct(d.share, 1)} sub="of agent sessions" />
-          <Stat label="People" value={num(s?.users ?? 0)} sub={`in ${num(s?.accounts ?? 0)} accounts`} />
-          <Stat label="Took over" value={num(s?.takeovers ?? 0)} sub="from a person mid-session" />
-          <Stat label="Sensitive actions" value={num(s?.sensitive ?? 0)} sub={`of ${num(s?.agentActions ?? 0)} actions`} />
-        </Stats>
-        <div className="border-t border-line px-2 pt-4 pb-2 md:px-3">
-          <AreaChart points={d.series} bucket={d.bucket} from={now - r.ms} to={now} series={["agent"]} height={200} />
+      <header className="mb-6 flex flex-col gap-4 md:mb-7 md:flex-row md:items-end md:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar name={name} provider={d.driver?.provider} size={52} />
+          <div className="min-w-0">
+            <h1 className="text-[28px] leading-[1.08] font-medium tracking-[-0.035em] md:text-[34px]">{name}</h1>
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-ink-2">
+              <span>{d.driver ? `${d.driver.provider} · ${KIND_LABEL[d.driver.kind]}` : "Clearly automated, but no known product matches"}</span>
+              <TierTag tier={tier} className="text-[14px] text-ink-3" />
+            </p>
+          </div>
         </div>
-      </Card>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Segmented label="Time range" items={RANGES.map((x) => ({ href: `/agents/${id}?range=${x.id}`, label: x.id, active: x.id === range }))} />
+          <LiveToggle />
+        </div>
+      </header>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="What it does" description="Its most frequent actions" />
-          {d.actions.length ? (
-            <ul className="divide-y divide-line">
-              {d.actions.map((a) => (
-                <li key={a.action.id} className="grid grid-cols-[1fr_auto_56px] items-center gap-4 px-5 py-2.5">
-                  <div className="min-w-0">
-                    <div className="truncate text-[13.5px]">{a.action.label}</div>
-                    <div className="flex items-center gap-1.5">
-                      <Method method={a.action.method} />
-                      <Mono className="truncate text-[11.5px] text-ink-3">{a.action.path}</Mono>
+      <div className="grid gap-3">
+        <Tiles cols={5}>
+          <Tile label="Sessions" value={num(s?.sessions ?? 0)} sub={period} />
+          <Tile label="Share of agents" value={pct(d.share, 1)} sub="of agent sessions" />
+          <Tile
+            label={site.anonymous ? "Visitors" : "People"}
+            value={num(s?.users ?? 0)}
+            sub={site.anonymous ? "it acted for" : `in ${num(s?.accounts ?? 0)} ${s?.accounts === 1 ? "account" : "accounts"}`}
+          />
+          <Tile label="Took over" value={num(s?.takeovers ?? 0)} sub="from a person mid-session" />
+          <Tile label="Sensitive actions" value={num(s?.sensitive ?? 0)} sub={`of ${num(s?.agentActions ?? 0)} actions`} />
+        </Tiles>
+
+        <Panel title="Sessions" description={`Sessions it drove, started ${WORDS[range]}, ${period}`}>
+          <ColumnChart points={d.series} bucket={d.bucket} from={now - r.ms} to={now} series={["agent"]} height={200} caption={`${name} sessions started ${WORDS[range]}, ${period}`} />
+        </Panel>
+
+        <div className={`grid gap-3 ${site.anonymous ? "" : "lg:grid-cols-2"}`}>
+          <Panel
+            title="What it does"
+            description="Its most frequent actions"
+            action={
+              <Link href={`/rules?agent=${d.driver?.id ?? "unnamed"}`} className="flex shrink-0 items-center gap-2 pt-0.5 text-[12.5px] text-ink-3 hover:text-ink">
+                Rules
+                <Pill tone={rules.tone}>{rules.label}</Pill>
+              </Link>
+            }
+            flush
+          >
+            {d.actions.length ? (
+              <ul>
+                {d.actions.map((a) => (
+                  <li key={a.action.id} className="grid grid-cols-[minmax(0,1fr)_auto_56px] items-center gap-4 border-t border-line px-4 py-2.5 first:border-t-0">
+                    <div className="min-w-0">
+                      <div className="truncate text-[13.5px]">{a.action.label}</div>
+                      <div className="flex items-center gap-1.5">
+                        <Method method={a.action.method} />
+                        <Mono className="truncate text-[11.5px] text-ink-3">{a.action.path}</Mono>
+                      </div>
                     </div>
-                  </div>
-                  <RiskTag risk={a.action.risk} />
-                  <span className="text-right text-[13px] tabular">{num(a.count)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Empty title="No actions yet" />
-          )}
-        </Card>
+                    <RiskTag risk={a.action.risk} />
+                    <span className="text-right text-[13px] tabular">{num(a.count)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Empty title="No actions yet">Nothing sensitive {period}.</Empty>
+            )}
+          </Panel>
 
-        <Card>
-          <CardHeader title="Who uses it" description="Accounts by agent hours" action={<CardLink href={`/accounts?range=${range}`}>All accounts</CardLink>} />
-          {d.accounts.length ? (
-            <BarList
-              rows={d.accounts.map((a) => ({
-                key: a.id,
-                label: a.name,
-                sub: `${num(a.agentUsers)} ${a.agentUsers === 1 ? "person" : "people"}`,
-                value: a.agentHours,
-                display: hours(a.agentHours),
-                href: `/sessions?account=${a.id}&type=agent`,
-              }))}
-            />
-          ) : (
-            <Empty title="Not seen in this range" />
+          {!site.anonymous && (
+            <Panel title="Who uses it" description="Accounts by agent hours" action={<PanelLink href={`/accounts?range=${range}`}>Accounts</PanelLink>}>
+              {d.accounts.length ? (
+                <ShareList
+                  max={maxAccount}
+                  rows={d.accounts.map((a) => ({
+                    key: a.id,
+                    label: a.name,
+                    sub: `${num(a.agentUsers)} ${a.agentUsers === 1 ? "person" : "people"}`,
+                    share: a.agentHours,
+                    display: hours(a.agentHours),
+                    href: `/sessions?account=${a.id}&type=agent`,
+                  }))}
+                />
+              ) : (
+                <Empty title="Not seen in this range" />
+              )}
+            </Panel>
           )}
-        </Card>
+        </div>
+
+        <Panel title="Recent sessions" action={<PanelLink href={`/sessions?type=agent${d.driver ? `&driver=${d.driver.id}` : "&driver=unnamed"}`}>All sessions</PanelLink>} flush>
+          {d.recent.length ? <SessionsTable rows={d.recent} now={now} anonymous={site.anonymous} markSensor={site.demo} /> : <Empty title="No sessions in this range" />}
+        </Panel>
       </div>
-
-      <Card className="mt-5">
-        <CardHeader title="Recent sessions" action={<CardLink href={`/sessions?type=agent${d.driver ? `&driver=${d.driver.id}` : ""}`}>All sessions</CardLink>} />
-        {d.recent.length ? <SessionsTable rows={d.recent} now={now} /> : <Empty title="No sessions in this range" />}
-      </Card>
     </Page>
   );
 }

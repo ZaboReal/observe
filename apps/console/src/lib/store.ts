@@ -3,6 +3,7 @@ import "server-only";
 import type { CompactAction, Observation } from "./evidence";
 import { DAY, MINUTE, buildEvents, sessionsInMinute, summarise } from "./generate";
 import type { JevAnswer } from "./jev-questions";
+import { DEFAULT_SITE, siteById } from "./site";
 import type { Reason, Session, SessionEvent, Tier, Verdict } from "./types";
 
 /** The verdict the sensor's own rules reached in the browser. */
@@ -28,6 +29,8 @@ export const HISTORY = 7 * DAY;
 
 /** Everything held for a session the sensor reported. */
 export interface SensorRecord {
+  /** The site it was reported from (see site.ts). */
+  site: string;
   session: Session;
   events: SessionEvent[];
   /** Input events by `pageId:actionIndex`, so a late handoff can relabel them. */
@@ -52,6 +55,8 @@ export interface SensorRecord {
   /** Page-level evidence by the sensor's reason key. */
   observations: Map<string, Observation>;
   rules: RulesPassport | null;
+  /** What the server saw on the requests that carried the batches (latest wins). */
+  client: { ua: string | null; country: string | null; signatureAgent: string | null };
   jev: JevResult | null;
   jevStatus: { inFlight: boolean; at: number; key: string; error: string | null };
 }
@@ -85,30 +90,33 @@ class Store {
     }
   }
 
-  /** Sessions that started in [from, to], as they stand at `now`. Oldest first. */
-  sessions(from: number, to: number, now: number): Session[] {
+  /** One site's sessions that started in [from, to], as they stand at `now`. Oldest first. */
+  sessions(from: number, to: number, now: number, siteId: string = DEFAULT_SITE.id): Session[] {
     this.evict(now);
     const out: Session[] = [];
     const end = Math.min(to, now);
-    for (let b = Math.floor(from / MINUTE); b <= Math.floor(end / MINUTE); b++) {
+    const demo = siteById(siteId)?.demo ?? false;
+    for (let b = Math.floor(from / MINUTE); demo && b <= Math.floor(end / MINUTE); b++) {
       for (const s of this.minute(b)) {
         if (s.startedAt < from || s.startedAt > end) continue;
         out.push(s.endedAt > now ? cutAt(s, now) : s);
       }
     }
     for (const r of this.sensor.values()) {
-      if (r.session.startedAt >= from && r.session.startedAt <= end) out.push(r.session);
+      if (r.site === siteId && r.session.startedAt >= from && r.session.startedAt <= end) out.push(r.session);
     }
     return out.sort((a, b) => a.startedAt - b.startedAt);
   }
 
-  session(id: string, now: number): Session | undefined {
+  /** A session of this site by id. */
+  session(id: string, now: number, siteId: string = DEFAULT_SITE.id): Session | undefined {
     const sensor = this.sensor.get(id);
-    if (sensor) return sensor.session;
+    if (sensor) return sensor.site === siteId ? sensor.session : undefined;
+    if (!siteById(siteId)?.demo) return undefined;
     let s = this.byId.get(id);
     if (!s) {
       // Not cached yet: fill the history window once, then look again.
-      this.sessions(now - HISTORY, now, now);
+      this.sessions(now - HISTORY, now, now, siteId);
       s = this.byId.get(id);
     }
     if (!s || s.startedAt > now) return undefined;
@@ -122,10 +130,10 @@ class Store {
     return buildEvents(plan).filter((e) => plan.startedAt + e.t <= now);
   }
 
-  /** The most recent time the sensor sent anything, for the setup page. */
-  lastSensorEvent(): number | null {
+  /** The most recent time the sensor sent anything for a site, for the setup page. */
+  lastSensorEvent(siteId: string = DEFAULT_SITE.id): number | null {
     let last: number | null = null;
-    for (const r of this.sensor.values()) last = Math.max(last ?? 0, r.lastSeen);
+    for (const r of this.sensor.values()) if (r.site === siteId) last = Math.max(last ?? 0, r.lastSeen);
     return last;
   }
 }
@@ -147,7 +155,7 @@ function cutAt(session: Session, now: number): Session {
 }
 
 /** Bump when the demo generator changes, so a running dev server drops demo sessions cached by the old one. */
-const DATA_VERSION = 9;
+const DATA_VERSION = 10;
 
 // Sensor data is kept apart from the demo cache so a version bump or hot reload never drops what the sensor sent.
 const g = globalThis as unknown as { __observeSensor?: Map<string, SensorRecord>; __observeStore?: { version: number; store: Store } };

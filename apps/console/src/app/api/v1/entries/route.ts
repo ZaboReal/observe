@@ -1,4 +1,6 @@
 import { EXPORT_CAP, entryLog, parseRange } from "@/lib/queries";
+import { currentSite } from "@/lib/current-site";
+import { syncStore } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
 
@@ -8,11 +10,13 @@ function cell(v: string): string {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
-/** Entry log as JSON, or CSV with `?format=csv`. Takes the same filters as the page. */
-export function GET(req: Request) {
+/** Agent actions (the Activity page) as JSON, or CSV with `?format=csv`. Takes the same filters as the page. */
+export async function GET(req: Request) {
+  await syncStore();
+  const site = await currentSite();
   const url = new URL(req.url);
   const range = parseRange(url.searchParams.get("range") ?? undefined);
-  const { lines, counts } = entryLog({
+  const { lines, counts } = entryLog({ siteId: site.id,
     range,
     sensitiveOnly: url.searchParams.get("sensitive") === "1",
     driverId: url.searchParams.get("driver") ?? undefined,
@@ -27,7 +31,7 @@ export function GET(req: Request) {
   return new Response([HEADER.join(","), ...rows].join("\n"), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="entry-log-${range}.csv"`,
+      "Content-Disposition": `attachment; filename="activity-${range}.csv"`,
     },
   });
 }
