@@ -3,218 +3,218 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agent Passport Control · The permissions layer for AI agents</title>
+<title>Observe · Know which AI agents use your product</title>
 <meta name="description" content="See which AI agent is acting in your product and for whom, keep a record of everything it does, and decide which actions it may take.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='3' width='22' height='26' rx='4' fill='%23121417'/%3E%3Ccircle cx='16' cy='14' r='5' fill='none' stroke='%23F5F3EE' stroke-width='2'/%3E%3Cpath d='M10.5 23h11' stroke='%23F5F3EE' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M3 16c3.4-5.8 7.8-8.7 13-8.7S25.6 10.2 29 16c-3.4 5.8-7.8 8.7-13 8.7S6.4 21.8 3 16Z' fill='none' stroke='%23101215' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='16' r='4.2' fill='%23101215'/%3E%3C/svg%3E">
 </head>
 <body>
 <a class="skip" href="#main">Skip to main content</a>
-<!-- Guilloche patterns, built by main.js and reused across the page. -->
-<svg class="defs" aria-hidden="true"><defs id="patterns"></defs></svg>
 
-<header class="nav">
-  <a class="brand" href="#top" aria-label="Agent Passport Control home">
-    <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><rect x="5" y="3" width="22" height="26" rx="4" fill="#121417"/><circle cx="16" cy="14" r="5" fill="none" stroke="#F5F3EE" stroke-width="2"/><path d="M10.5 23h11" stroke="#F5F3EE" stroke-width="2" stroke-linecap="round"/></svg>
-    <span>Passport Control</span>
+<header class="nav" id="nav">
+  <a class="logo" href="#top" aria-label="Observe home">
+    <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><path d="M3 16c3.4-5.8 7.8-8.7 13-8.7S25.6 10.2 29 16c-3.4 5.8-7.8 8.7-13 8.7S6.4 21.8 3 16Z" fill="none" stroke="#101215" stroke-width="2.4"/><circle cx="16" cy="16" r="4.2" fill="#101215"/></svg>
   </a>
-  <nav class="links" aria-label="Sections">
-    <a href="#how">How it works</a>
-    <a href="#visas">Visas</a>
-    <a href="#seats">Seats</a>
-    <a href="#pricing">Pricing</a>
-    <a href="#faq">FAQ</a>
-  </nav>
-  <button class="menu-toggle" aria-expanded="false" aria-controls="mobile-menu"><span class="burger" aria-hidden="true"></span>Menu</button>
-  <div id="mobile-menu" class="mobile-menu" hidden>
-    <a href="#how">How it works</a><a href="#visas">Visas</a><a href="#seats">Seats</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
+
+  <div class="menu-wrap">
+    <button class="menu-pill" id="menu-toggle" aria-expanded="false" aria-controls="menu-panel"><span class="burger" aria-hidden="true"></span>Menu</button>
+    <div class="menu-panel" id="menu-panel" aria-hidden="true">
+      <button class="menu-close" id="menu-close" tabindex="-1"><span class="x" aria-hidden="true"></span>Close</button>
+      <div class="menu-cols">
+        <div>
+          <small>Product</small>
+          <a class="big" href="#how" tabindex="-1">How it works</a>
+          <a class="big" href="#control" tabindex="-1">Control</a>
+          <a class="big" href="#seats" tabindex="-1">Seats</a>
+          <a class="big" href="#pricing" tabindex="-1">Pricing</a>
+        </div>
+        <div>
+          <small>Teams</small>
+          <a class="small" href="#teams" tabindex="-1">Security</a>
+          <a class="small" href="#teams" tabindex="-1">Product</a>
+          <a class="small" href="#teams" tabindex="-1">Pricing &amp; RevOps</a>
+          <small class="gap">Help</small>
+          <a class="small" href="#faq" tabindex="-1">FAQ</a>
+          <a class="small" href="#access" tabindex="-1">Contact</a>
+        </div>
+      </div>
+    </div>
   </div>
+
   <a class="btn btn-dark nav-cta" href="#access">Request access</a>
 </header>
 
 <main id="main">
   <!-- Hero -->
   <section class="hero" id="top">
-    <svg class="rosette hero-rosette" viewBox="-260 -260 520 520" aria-hidden="true"><use href="#rosette-a"/></svg>
-    <span class="badge reveal"><i class="live"></i> Private beta · onboarding B2B SaaS teams</span>
-    <h1 class="reveal">Every AI agent on your site,<br><em>verified, recorded, permitted.</em></h1>
-    <p class="lede reveal">Claude, Comet, ChatGPT and Gemini now work inside your product with your customers' own logins. Passport Control checks every agent at the door: who it is, who it's acting for, and what it's allowed to do.</p>
-    <div class="actions reveal">
+    <div class="glow" aria-hidden="true"></div>
+    <span class="badge rise"><i class="live"></i> Private beta</span>
+    <h1 class="rise">Know which AI agents use your product,<br><em>and what they're allowed to do.</em></h1>
+    <p class="lede rise">Claude, Comet, ChatGPT and Gemini now work inside your product with your customers' own logins. See which agent is acting and for whom, keep a record of what it does, and decide which actions it may take.</p>
+    <div class="actions rise">
       <a class="btn btn-dark btn-lg" href="#access">Request early access</a>
       <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
     </div>
-    <p class="fine reveal">One script tag &nbsp;·&nbsp; Knows 70 agents by name &nbsp;·&nbsp; Collects behaviour, never content</p>
-    <svg class="waves" viewBox="0 0 1600 140" preserveAspectRatio="none" aria-hidden="true"><use href="#waves"/></svg>
+    <p class="fine rise">One script tag &nbsp;·&nbsp; Recognises 70 agents &nbsp;·&nbsp; Reads behaviour, never content</p>
   </section>
 
-  <!-- Product window -->
-  <section class="showcase">
-    <div class="head center reveal">
-      <p class="kicker">The console</p>
-      <h2>Same login. <em>Different hands.</em></h2>
-      <p>Bot protection sees a real browser. Your login sees the right customer. Passport Control sees who is actually driving.</p>
-    </div>
-
-    <div class="window reveal" role="img" aria-label="Console showing sessions: some driven by people, some by AI agents such as Claude in Chrome and Perplexity Comet">
-      <div class="window-side">
-        <div class="lights"><i></i><i></i><i></i></div>
-        <div class="side-label">Ledgerline</div>
-        <ul class="side-nav"><li>Overview</li><li class="on">Sessions</li><li>Agents</li><li>Accounts</li><li>Entry log</li><li>Visas</li></ul>
-        <div class="side-label">Live</div>
-        <div class="side-live"><i class="live"></i> 1,284 sessions now</div>
-      </div>
-      <div class="window-main">
-        <div class="toolbar">
-          <b>Sessions</b>
-          <div class="tools"><span class="seg"><b>All</b><span>Agents</span><span>People</span></span><span class="search">Search</span></div>
-        </div>
-        <table class="sessions">
-          <thead><tr><th>Person</th><th>Driven by</th><th>Tier</th><th>Last action</th></tr></thead>
-          <tbody>
-            <tr class="sel"><td><b>morgan@acme.com</b><small>Acme · took over 10:41</small></td><td><span class="who agent">Claude in Chrome</span></td><td><span class="tier rec">Recognised</span></td><td>Export invoices</td></tr>
-            <tr><td><b>sam@northwind.io</b><small>Northwind</small></td><td><span class="who person">A person</span></td><td><span class="tier hum">Human</span></td><td>View report</td></tr>
-            <tr><td><b>ops@contoso.com</b><small>Contoso</small></td><td><span class="who agent">Perplexity Comet</span></td><td><span class="tier rec">Recognised</span></td><td>Search invoices</td></tr>
-            <tr><td><b>dana@fabrikam.co</b><small>Fabrikam</small></td><td><span class="who agent">ChatGPT agent</span></td><td><span class="tier ver">Verified</span></td><td>Create invoice</td></tr>
-            <tr><td><b>lee@tailspin.dev</b><small>Tailspin</small></td><td><span class="who agent">Unknown automation</span></td><td><span class="tier unk">Unknown</span></td><td>Invite user</td></tr>
-            <tr><td><b>priya@acme.com</b><small>Acme</small></td><td><span class="who person">A person</span></td><td><span class="tier hum">Human</span></td><td>Edit customer</td></tr>
-          </tbody>
-        </table>
+  <!-- Pinned product scene: the console window grows into view as you scroll -->
+  <section class="scene" id="scene">
+    <div class="scene-sticky">
+      <div class="head center">
+        <h2>Same login. <em>Different hands.</em></h2>
+        <p>Bot protection sees a real browser. Your login sees the right customer. Observe sees who is actually driving.</p>
       </div>
 
-      <aside class="passport">
-        <div class="passport-head"><span>Passport</span><span class="mono">AG-7F3A</span></div>
-        <div class="passport-who">
-          <div class="avatar">C</div>
-          <div><b>Claude in Chrome</b><small>Anthropic · acting for morgan@acme.com</small></div>
-          <span class="conf">94%</span>
-        </div>
-        <div class="track" aria-hidden="true"><span class="p"></span><span class="a"></span><em>took over 10:41</em></div>
-        <dl>
-          <dt>Tier</dt><dd>Recognised by behaviour</dd>
-          <dt>Visa</dt><dd>V-7F3A · view, export · 30 days</dd>
-          <dt>Granted by</dt><dd>Morgan, within Acme's rules</dd>
-        </dl>
-        <ul class="decisions">
-          <li><span class="tag ok">Allowed</span> Exported 4,210 rows <time>10:44</time></li>
-          <li><span class="tag no">Refused</span> Invite outside user <time>10:46</time></li>
-        </ul>
-        <span class="stamp green reveal" aria-hidden="true">Admitted</span>
-      </aside>
-    </div>
-  </section>
-
-  <!-- Three checks -->
-  <section class="checks" id="how">
-    <div class="head reveal">
-      <p class="kicker">How it works</p>
-      <h2>Three checks <em>at the border.</em></h2>
-      <p>Every agent gets a passport, every action goes in the entry log, and your customers issue visas for exactly what their agents may do.</p>
-    </div>
-
-    <div class="docs">
-      <article class="doc reveal">
-        <div class="doc-visual">
-          <div class="paper passport-page">
-            <svg class="rosette corner" viewBox="-260 -260 520 520" aria-hidden="true"><use href="#rosette-b"/></svg>
-            <div class="paper-head"><span>Passport · Agent</span><span class="mono">No. AG-7F3A</span></div>
-            <div class="passport-body">
-              <div class="photo">C</div>
-              <dl>
-                <dt>Name</dt><dd>Claude in Chrome</dd>
-                <dt>Provider</dt><dd>Anthropic</dd>
-                <dt>Type</dt><dd>Browser extension</dd>
-                <dt>Tier</dt><dd>Recognised · 94%</dd>
-              </dl>
+      <div class="stage">
+        <div class="window" id="scene-window" role="img" aria-label="Console showing sessions: some driven by people, some by AI agents such as Claude in Chrome and Perplexity Comet">
+          <div class="window-side">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="side-label">Ledgerline</div>
+            <ul class="side-nav"><li>Overview</li><li class="on">Sessions</li><li>Agents</li><li>Accounts</li><li>Activity</li><li>Rules</li></ul>
+            <div class="side-label">Live</div>
+            <div class="side-live"><i class="live"></i> 1,284 sessions now</div>
+          </div>
+          <div class="window-main">
+            <div class="toolbar">
+              <b>Sessions</b>
+              <div class="tools"><span class="seg"><b>All</b><span>Agents</span><span>People</span></span><span class="search">Search</span></div>
             </div>
-            <div class="mrz mono">P&lt;ANT&lt;CLAUDE&lt;IN&lt;CHROME&lt;&lt;&lt;&lt;&lt;&lt;&lt;<br>AG7F3A&lt;&lt;RECOGNISED&lt;&lt;94&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+            <table class="sessions">
+              <thead><tr><th>Person</th><th>Driven by</th><th>Status</th><th>Last action</th></tr></thead>
+              <tbody>
+                <tr class="sel"><td><b>morgan@acme.com</b><small>Acme · agent took over 10:41</small></td><td><span class="who agent">Claude in Chrome</span></td><td><span class="pill-s ok">Allowed</span></td><td>Export invoices</td></tr>
+                <tr><td><b>sam@northwind.io</b><small>Northwind</small></td><td><span class="who person">A person</span></td><td><span class="pill-s mute">Person</span></td><td>View report</td></tr>
+                <tr><td><b>ops@contoso.com</b><small>Contoso</small></td><td><span class="who agent">Perplexity Comet</span></td><td><span class="pill-s ok">Allowed</span></td><td>Search invoices</td></tr>
+                <tr><td><b>dana@fabrikam.co</b><small>Fabrikam</small></td><td><span class="who agent">ChatGPT agent</span></td><td><span class="pill-s ask">Asked</span></td><td>Change payout</td></tr>
+                <tr><td><b>lee@tailspin.dev</b><small>Tailspin</small></td><td><span class="who agent">Unknown automation</span></td><td><span class="pill-s no">Blocked</span></td><td>Invite user</td></tr>
+                <tr><td><b>priya@acme.com</b><small>Acme</small></td><td><span class="who person">A person</span></td><td><span class="pill-s mute">Person</span></td><td>Edit customer</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
-        <p class="step mono">01</p>
-        <h3>Verify</h3>
-        <p>One script tag tells when an agent is driving and names it. Agents that sign their requests are verified, known products are recognised from how they behave, and the rest are flagged as unknown automation.</p>
+
+        <aside class="detail" id="scene-detail">
+          <div class="detail-head"><span>Session</span><span class="lights"><i></i><i></i><i></i></span></div>
+          <div class="detail-who">
+            <div class="avatar">C</div>
+            <div><b>Claude in Chrome</b><small>Anthropic · acting for morgan@acme.com</small></div>
+            <span class="conf">94%</span>
+          </div>
+          <div class="track" aria-hidden="true"><span class="p"></span><span class="a"></span><em>agent took over 10:41</em></div>
+          <dl>
+            <dt>Recognised by</dt><dd>How it clicks and types</dd>
+            <dt>Allowed to</dt><dd>View and export invoices</dd>
+            <dt>Approved by</dt><dd>Morgan, within Acme's rules</dd>
+          </dl>
+        </aside>
+
+        <div class="toast" id="scene-toast">
+          <span class="toast-icon" aria-hidden="true">!</span>
+          <div><b>Blocked: invite outside user</b><small>Claude in Chrome isn't allowed to invite people. Logged for Morgan.</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="how" id="how">
+    <div class="head">
+      <h2>See it. Record it. <em>Control it.</em></h2>
+      <p>One script tag in your product. From then on, every session tells you who is driving, every agent action is kept on record, and your customers decide what their agents may do.</p>
+    </div>
+
+    <div class="steps">
+      <article class="step">
+        <div class="shot zoom">
+          <div class="mini">
+            <div class="mini-bar"><span class="lights"><i></i><i></i><i></i></span><b>Live sessions</b></div>
+            <div class="mini-row"><span class="who agent">Claude in Chrome</span><span class="mono">agent · 94%</span></div>
+            <div class="mini-row"><span class="who person">A person</span><span class="mono">person · 97%</span></div>
+            <div class="mini-row"><span class="who agent">Perplexity Comet</span><span class="mono">agent · 88%</span></div>
+            <div class="mini-row"><span class="who agent">Unknown automation</span><span class="mono">agent · 99%</span></div>
+          </div>
+        </div>
+        <p class="num mono">01</p>
+        <h3>See who is driving</h3>
+        <p>Every session is marked as a person or an agent, and agents are named: Claude in Chrome, Comet, ChatGPT and 70 others. You also see the moment a person hands the session to an agent.</p>
       </article>
 
-      <article class="doc reveal">
-        <div class="doc-visual">
-          <div class="paper log-page">
-            <div class="paper-head"><span>Entry log</span><span class="mono">morgan@acme.com</span></div>
-            <ol class="entries">
-              <li><time class="mono">10:41</time><span>Claude took over from Morgan</span></li>
-              <li><time class="mono">10:43</time><span>View invoices</span><span class="tag ok">Allowed</span></li>
-              <li><time class="mono">10:44</time><span>Export 4,210 rows</span><span class="tag ok">Allowed</span></li>
-              <li><time class="mono">10:46</time><span>Invite outside user</span><span class="tag no">Refused</span></li>
-            </ol>
+      <article class="step">
+        <div class="shot zoom">
+          <div class="mini">
+            <div class="mini-bar"><span class="lights"><i></i><i></i><i></i></span><b>Activity · morgan@acme.com</b></div>
+            <div class="mini-row"><span><time class="mono">10:41</time> Claude took over from Morgan</span></div>
+            <div class="mini-row"><span><time class="mono">10:43</time> View invoices</span><span class="pill-s ok">Allowed</span></div>
+            <div class="mini-row"><span><time class="mono">10:44</time> Export 4,210 rows</span><span class="pill-s ok">Allowed</span></div>
+            <div class="mini-row"><span><time class="mono">10:46</time> Invite outside user</span><span class="pill-s no">Blocked</span></div>
           </div>
         </div>
-        <p class="step mono">02</p>
-        <h3>Record</h3>
-        <p>Every agent action is logged with the agent, its visa and the person it acted for, so audit trails finally say who really acted. Ready for SOC 2, regulated customers and the EU AI Act.</p>
+        <p class="num mono">02</p>
+        <h3>Keep a record of every action</h3>
+        <p>Each agent action is logged with the agent, what it was allowed to do, and the person it acted for, so your audit trail finally says who really acted. Exportable for SOC 2 and regulated customers.</p>
       </article>
 
-      <article class="doc reveal">
-        <div class="doc-visual">
-          <div class="paper visa-mini">
-            <svg class="rosette corner" viewBox="-260 -260 520 520" aria-hidden="true"><use href="#rosette-b"/></svg>
-            <div class="paper-head"><span>Visa · Ledgerline</span><span class="mono">V-7F3A</span></div>
-            <div class="chips"><span>View</span><span>Export</span></div>
-            <dl class="visa-fields">
-              <dt>Holder</dt><dd>Claude in Chrome</dd>
-              <dt>For</dt><dd>Morgan · Acme</dd>
-              <dt>Valid until</dt><dd>6 Nov 2026</dd>
-            </dl>
-            <span class="stamp green small reveal" aria-hidden="true">Issued</span>
+      <article class="step">
+        <div class="shot zoom">
+          <div class="mini prompt-card">
+            <div class="prompt-top"><span class="avatar sm">C</span><div><b>Claude in Chrome wants to</b><small>act on your Ledgerline account</small></div></div>
+            <ul class="asks"><li><i></i>View invoices</li><li><i></i>Edit invoices</li><li class="off"><i></i>Invite people</li></ul>
+            <div class="prompt-foot"><span class="mono">for 30 days</span><span class="btn btn-ghost btn-xs">Deny</span><span class="btn btn-dark btn-xs">Allow</span></div>
           </div>
         </div>
-        <p class="step mono">03</p>
-        <h3>Permit</h3>
-        <p>Your customers grant their agents exactly what they need, in plain words. Every sensitive action is checked against the visa: allow, ask the person, slow down, bill or refuse.</p>
+        <p class="num mono">03</p>
+        <h3>Decide what agents may do</h3>
+        <p>People approve their own agent once, in plain words. At every sensitive action the agent's access is checked: allow it, ask the person, slow it down, or block it.</p>
       </article>
     </div>
 
     <ul class="details">
-      <li class="reveal"><b>Hand-off detection</b><span>See the moment a person passes the session to an agent.</span></li>
-      <li class="reveal"><b>Passkey for the risky stuff</b><span>Asking the person uses their passkey, which no agent can approve.</span></li>
-      <li class="reveal"><b>Behaviour, never content</b><span>No keystrokes, field values, page text or screenshots.</span></li>
-      <li class="reveal"><b>A fast lane for good agents</b><span>Verified agents skip challenges and get structured tools.</span></li>
+      <li><b>Hand-off detection</b><span>See the exact moment a person passes a session to an agent.</span></li>
+      <li><b>Ask the person</b><span>Risky actions can require the person's passkey, which no agent can approve.</span></li>
+      <li><b>Behaviour, never content</b><span>No keystrokes, field values, page text or screenshots.</span></li>
+      <li><b>A faster path for trusted agents</b><span>Agents that identify themselves skip challenges.</span></li>
     </ul>
   </section>
 
-  <!-- Visas -->
-  <section class="visas" id="visas">
-    <div class="visa-grid">
-      <div class="visa-art reveal">
-        <div class="visa">
-          <svg class="rosette visa-rosette" viewBox="-260 -260 520 520" aria-hidden="true"><use href="#rosette-a"/></svg>
-          <div class="holo" aria-hidden="true"></div>
-          <div class="visa-top"><span>Visa</span><span class="mono">LDG · No. V-7F3A</span></div>
-          <div class="visa-main">
-            <div class="photo lg">C</div>
-            <dl>
-              <dt>Holder</dt><dd>Claude in Chrome <small>Anthropic</small></dd>
-              <dt>Acting for</dt><dd>Morgan Lee <small>Acme Corp</small></dd>
-              <dt>Permitted</dt><dd class="chips"><span>View</span><span>Edit invoices</span></dd>
-              <dt>Never</dt><dd class="never">Delete records · Change payment details</dd>
-              <dt>Valid</dt><dd>7 Oct 2026 – 6 Nov 2026</dd>
-            </dl>
+  <!-- Control -->
+  <section class="control" id="control">
+    <div class="control-grid">
+      <div class="shot zoom control-shot">
+        <div class="window rules">
+          <div class="rules-side">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <div class="side-label">Agents · Acme</div>
+            <ul>
+              <li class="on"><span class="who agent">Claude in Chrome</span><span class="pill-s ok">On</span></li>
+              <li><span class="who agent">Perplexity Comet</span><span class="pill-s ask">View</span></li>
+              <li><span class="who agent">ChatGPT agent</span><span class="pill-s ok">On</span></li>
+              <li><span class="who agent">Unknown automation</span><span class="pill-s no">Off</span></li>
+            </ul>
           </div>
-          <div class="mrz mono">V&lt;LDG&lt;CLAUDE&lt;IN&lt;CHROME&lt;&lt;MORGAN&lt;LEE&lt;&lt;&lt;&lt;&lt;<br>V7F3A&lt;&lt;&lt;VIEW&lt;EDIT&lt;&lt;261106&lt;&lt;ACME&lt;&lt;&lt;&lt;&lt;&lt;&lt;</div>
+          <div class="rules-main">
+            <div class="rules-title"><b>Claude in Chrome</b><small>What it may do in Acme's workspace</small></div>
+            <div class="rule"><span>View records</span><span class="choice"><b class="ok">Allow</b><span>Ask</span><span>Never</span></span></div>
+            <div class="rule"><span>Export data</span><span class="choice"><span>Allow</span><b class="ask">Ask</b><span>Never</span></span></div>
+            <div class="rule"><span>Edit invoices</span><span class="choice"><b class="ok">Allow</b><span>Ask</span><span>Never</span></span></div>
+            <div class="rule"><span>Invite people</span><span class="choice"><span>Allow</span><span>Ask</span><b class="no">Never</b></span></div>
+            <div class="rule"><span>Delete records</span><span class="choice locked"><span>Allow</span><span>Ask</span><b class="no">Never</b></span><small class="lock">Set by Ledgerline</small></div>
+          </div>
         </div>
-        <span class="stamp green big reveal" aria-hidden="true">Admitted<small>Ledgerline · 07 Oct 2026</small></span>
       </div>
 
-      <div class="visa-copy">
-        <div class="head reveal">
-          <p class="kicker">Visas</p>
-          <h2>You set the rules. <em>Your customers hold the keys.</em></h2>
+      <div class="control-copy">
+        <div class="head">
+          <h2>You set the rules. <em>Your customers approve the rest.</em></h2>
         </div>
-        <ol class="chain">
-          <li class="reveal"><small>Company B · the product</small><b>Ledgerline sets the rules</b><span>Financial records can only be edited by approved agents, with the account holder's visa. No agent ever deletes records.</span></li>
-          <li class="reveal"><small>Company A · the customer</small><b>Acme's admin narrows them</b><span>Our team may use Claude in Chrome, to view and edit invoices.</span></li>
-          <li class="reveal"><small>Acme employee</small><b>Morgan issues the visa</b><span>"Claude wants to view and edit invoices for 30 days." Allow.</span></li>
-          <li class="reveal refused"><small>Morgan's agent</small><b>Claude stays inside it</b><span>An injected email tells it to export the customer list. Outside the visa: refused, and logged against Claude, acting for Morgan.</span><span class="stamp red small reveal" aria-hidden="true">Refused</span></li>
+        <ol class="layers">
+          <li><small>Your company</small><b>Sets the limits for your product</b><span>For example: agents may edit invoices only with the account holder's approval, and no agent ever deletes records.</span></li>
+          <li><small>Your customer's admin</small><b>Chooses which agents their team may use</b><span>Acme allows Claude in Chrome to view and edit invoices, Comet to view only, and nothing unknown.</span></li>
+          <li><small>Each person</small><b>Approves their own agent</b><span>Morgan allows Claude to view and edit invoices for 30 days, and can switch it off in one click.</span></li>
+          <li class="blocked"><small>The agent</small><b>Stays inside what it was given</b><span>When an injected email tells Claude to export the customer list, the export is outside its access: blocked, and logged against Claude, acting for Morgan.</span></li>
         </ol>
       </div>
     </div>
@@ -222,38 +222,61 @@
 
   <!-- Seats -->
   <section class="seats" id="seats">
+    <div class="head center">
+      <h2>One seat. <em>Two drivers.</em></h2>
+      <p>Most SaaS is sold by the seat: one login, priced for one person working part of the day. AI agents now use that same login, sometimes alongside the person and often long after they've logged off. Your pricing can't see the difference. Observe can.</p>
+    </div>
+
     <div class="seats-grid">
-      <div class="head reveal">
-        <p class="kicker">Seats</p>
-        <h2>One seat. <em>Two drivers.</em></h2>
-        <p>Seats are priced for a person working a few hours a day. An agent on the same login works nights and weekends, and a team can buy two seats and let agents do the work of ten. Passport Control splits person-hours from agent-hours on every login, so you can charge for agent use, include it in plans, or simply allow it.</p>
-      </div>
-      <figure class="week reveal">
-        <figcaption><span>One seat, one week</span><span class="mono">illustrative</span></figcaption>
-        <div id="week" class="week-grid" aria-label="Person active about 40 hours on weekdays; agent active about 140 hours across the whole week"></div>
+      <figure class="week shot zoom">
+        <figcaption><span>One seat, one week</span><span class="mono">example</span></figcaption>
+        <div id="week" class="week-grid" aria-label="The person works weekday office hours; the agent on the same login works mornings, evenings and weekends"></div>
         <div class="week-hours mono"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
-        <div class="week-key"><span><i class="k-person"></i>Person · ~40 h</span><span><i class="k-agent"></i>Agent, same login · ~140 h</span></div>
+        <div class="week-key"><span><i class="k-person"></i>Person · <b id="person-hours">–</b></span><span><i class="k-agent"></i>Agent, same login · <b id="agent-hours">–</b></span></div>
       </figure>
+
+      <div class="seat-points">
+        <div class="point"><span class="mono">What's happening</span><p>Morgan has one seat. They work weekdays, about seven hours a day. Claude in Chrome uses Morgan's login too: it clears the inbox at 6 am, exports reports at night and keeps going at the weekend. To your billing system, that's one very busy user.</p></div>
+        <div class="point"><span class="mono">What we measure</span><p>For every login and account: hours driven by the person and hours driven by agents, the actions each took, which agents were used, and every hand-off between them.</p></div>
+        <div class="point"><span class="mono">Why it matters</span><p>Your costs follow usage: servers, data and support. Revenue stays flat per seat. A team of ten can buy three seats and let agents do the rest, and nobody notices until margins move.</p></div>
+      </div>
+    </div>
+
+    <div class="accounts shot zoom">
+      <div class="accounts-head"><b>Accounts</b><span class="mono">example · last 30 days</span></div>
+      <table>
+        <thead><tr><th>Account</th><th>Seats</th><th>Person hours</th><th>Agent hours</th><th>Agent share</th><th>Top agent</th></tr></thead>
+        <tbody>
+          <tr><td>Acme</td><td>4</td><td>512</td><td>1,036</td><td><span class="share"><i style="--w:67%"></i>67%</span></td><td>Claude in Chrome</td></tr>
+          <tr><td>Northwind</td><td>12</td><td>1,604</td><td>298</td><td><span class="share"><i style="--w:16%"></i>16%</span></td><td>Perplexity Comet</td></tr>
+          <tr><td>Contoso</td><td>2</td><td>231</td><td>604</td><td><span class="share"><i style="--w:72%"></i>72%</span></td><td>ChatGPT agent</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="options">
+      <div class="option zoom"><b>Charge for it</b><span>Bill agent use per agent hour or per action, on top of the seat.</span></div>
+      <div class="option zoom"><b>Include it</b><span>Give each plan an allowance of agent hours, and upgrade the heavy users.</span></div>
+      <div class="option zoom"><b>Allow it</b><span>Let agents in freely, and know exactly how much they're used.</span></div>
     </div>
   </section>
 
   <!-- Teams -->
   <section class="teams" id="teams">
-    <div class="head reveal">
-      <p class="kicker">Who it's for</p>
+    <div class="head">
       <h2>Built for every team <em>that owns the product.</em></h2>
     </div>
     <div class="cards-3">
-      <article class="team reveal">
-        <div class="team-shot shot-log">
-          <div><span class="tag ok">Allowed</span>Claude · export 4,210 rows</div>
-          <div><span class="tag ask">Asked</span>ChatGPT · change payout</div>
-          <div><span class="tag no">Refused</span>Unknown · invite user</div>
+      <article class="team">
+        <div class="team-shot zoom shot-log">
+          <div><span class="pill-s ok">Allowed</span>Claude · export 4,210 rows</div>
+          <div><span class="pill-s ask">Asked</span>ChatGPT · change payout</div>
+          <div><span class="pill-s no">Blocked</span>Unknown · invite user</div>
         </div>
-        <small>Security</small><h3>Stop unapproved agents at the door, and keep the audit trail.</h3>
+        <small>Security</small><h3>Stop unapproved agents, and keep an audit trail that names them.</h3>
       </article>
-      <article class="team reveal">
-        <div class="team-shot shot-share">
+      <article class="team">
+        <div class="team-shot zoom shot-share">
           <small>Example workspace · agent sessions</small>
           <div><span>Claude in Chrome</span><i style="--w:78%"></i></div>
           <div><span>Perplexity Comet</span><i style="--w:46%"></i></div>
@@ -261,42 +284,41 @@
         </div>
         <small>Product</small><h3>See which workflows agents rely on, and smooth the path for good ones.</h3>
       </article>
-      <article class="team reveal">
-        <div class="team-shot shot-meter">
+      <article class="team">
+        <div class="team-shot zoom shot-meter">
           <small>Example account · this month</small>
-          <b>1,240</b><span>agent hours</span>
-          <div class="meter"><i style="--w:24%"></i></div>
+          <b>1,036</b><span>agent hours on 4 seats</span>
+          <div class="meter"><i style="--w:67%"></i></div>
         </div>
-        <small>Pricing &amp; RevOps</small><h3>Meter agent use per account, then decide how to price it.</h3>
+        <small>Pricing &amp; RevOps</small><h3>Measure agent use per account, then decide how to price it.</h3>
       </article>
     </div>
   </section>
 
   <!-- Pricing -->
   <section class="pricing" id="pricing">
-    <div class="head center reveal">
-      <p class="kicker">Pricing</p>
+    <div class="head center">
       <h2>Start free. <em>Pay for control.</em></h2>
-      <p>Every plan includes detection of the agents in our catalogue and the person behind each session.</p>
+      <p>Every plan recognises the agents in our catalogue and the person behind each session.</p>
     </div>
     <div class="plans">
-      <article class="plan reveal">
+      <article class="plan zoom">
         <h3>Agent audit</h3><p>See how agents already use your product.</p>
         <div class="price">Free</div><small>up to a monthly session allowance</small>
-        <ul><li>One script tag</li><li>Agent sessions dashboard</li><li>Agents by product and account</li><li>Person vs agent hours</li></ul>
+        <ul><li>One script tag</li><li>Live sessions: person or agent</li><li>Agents by product and account</li><li>Person vs agent hours</li></ul>
         <a class="btn btn-light btn-block" href="#access">Request access</a>
       </article>
-      <article class="plan featured reveal">
+      <article class="plan featured zoom">
         <span class="ribbon mono">Most teams</span>
-        <h3>Growth</h3><p>Let your customers issue visas.</p>
+        <h3>Growth</h3><p>Let your customers control their agents.</p>
         <div class="price">Per user</div><small>priced by monitored active users</small>
-        <ul><li>Everything in Agent audit</li><li>Consent prompt and visa settings</li><li>Decisions on sensitive actions</li><li>Entry log with export</li></ul>
+        <ul><li>Everything in Agent audit</li><li>Approval prompts and access rules</li><li>Decisions on sensitive actions</li><li>Activity log with export</li></ul>
         <a class="btn btn-dark btn-block" href="#access">Request access</a>
       </article>
-      <article class="plan reveal">
+      <article class="plan zoom">
         <h3>Enterprise</h3><p>For security and compliance teams.</p>
         <div class="price">Custom</div><small>tailored to your organisation</small>
-        <ul><li>Full policy engine</li><li>SSO / SAML</li><li>SIEM export and audit packs</li><li>Agent metering into billing</li></ul>
+        <ul><li>Full rules engine</li><li>SSO / SAML</li><li>SIEM export and audit packs</li><li>Agent usage into your billing</li></ul>
         <a class="btn btn-light btn-block" href="#access">Talk to us</a>
       </article>
     </div>
@@ -305,50 +327,48 @@
   <!-- FAQ -->
   <section class="faq" id="faq">
     <div class="faq-grid">
-      <div class="head reveal">
-        <p class="kicker">FAQ</p>
+      <div class="head">
         <h2>Common <em>questions.</em></h2>
         <p>Still have one? <a href="#access">Write to us</a>. A founder will read it.</p>
       </div>
       <div class="qa">
-        <details open><summary>What counts as an AI agent?</summary><p>Anything that drives your product for a person: browser extensions like Claude in Chrome, AI browsers like Comet, agents built into Chrome and Edge, cloud agents like ChatGPT agent, and automation frameworks. Our catalogue names 70 of them; anything else that is clearly automated is still caught as unknown automation.</p></details>
+        <details open><summary>What counts as an AI agent?</summary><p>Anything that drives your product for a person: browser extensions like Claude in Chrome, AI browsers like Comet, agents built into Chrome and Edge, cloud agents like ChatGPT agent, and automation frameworks. We recognise 70 by name; anything else that is clearly automated is still caught as unknown automation.</p></details>
         <details><summary>How is this different from bot protection?</summary><p>Bot protection asks whether this is a bot; your login asks whether this is the right person. An in-browser agent passes both: it runs on your customer's own device, with their cookies and their account. We answer the question that's left: which agent is acting, for whom, and is it allowed?</p></details>
         <details><summary>What do you collect?</summary><p>How the page is driven: pointer paths, click and key timing, how text and scrolling arrive, and markers agents leave on the page. Never what people type or see, and no screenshots.</p></details>
-        <details><summary>Will it get in my users' way?</summary><p>Nothing is blocked unless you write a rule that blocks it. Most teams start by seeing which agents are there, then turn on visas for two or three sensitive actions.</p></details>
-        <details><summary>How do you recognise agents that don't identify themselves?</summary><p>Many leave exact markers on the page. For the rest, a decision model reads how the session is driven and compares it with what we know about each agent. Agents that sign their requests are verified cryptographically and get the highest tier.</p></details>
-        <details><summary>Is this only about stopping bad agents?</summary><p>No. Most agent use is your customers getting work done. Visas let you give good agents a smooth path, see which features they rely on, and price their use fairly, while keeping the risky actions behind your customers' approval.</p></details>
+        <details><summary>Will it get in my users' way?</summary><p>Nothing is blocked unless you write a rule that blocks it. Most teams start by seeing which agents are there, then add rules for two or three sensitive actions.</p></details>
+        <details><summary>How do you recognise agents that don't identify themselves?</summary><p>Many leave exact markers on the page. For the rest, a decision model reads how the session is driven and compares it with what we know about each agent. Agents that sign their requests are verified cryptographically.</p></details>
+        <details><summary>Is this only about stopping bad agents?</summary><p>No. Most agent use is your customers getting work done. Rules let you give good agents a smooth path, see which features they rely on, and price their use fairly, while keeping risky actions behind your customers' approval.</p></details>
       </div>
     </div>
   </section>
 
   <!-- Closing -->
   <section class="closing" id="access">
-    <svg class="rosette closing-rosette" viewBox="-260 -260 520 520" aria-hidden="true"><use href="#rosette-a"/></svg>
-    <h2 class="reveal">Know who is driving. <em>Decide what they may do.</em></h2>
-    <form class="access reveal" onsubmit="event.preventDefault(); this.classList.add('sent');">
+    <div class="glow small" aria-hidden="true"></div>
+    <h2>Know who's driving. <em>Decide what they may do.</em></h2>
+    <form class="access" onsubmit="event.preventDefault(); this.classList.add('sent');">
       <label for="email" class="sr">Work email</label>
       <input id="email" type="email" placeholder="you@company.com" required>
       <button class="btn btn-dark" type="submit">Request early access</button>
       <span class="thanks">Thanks. We'll be in touch.</span>
     </form>
-    <p class="fine reveal">For B2B SaaS teams with sensitive data: CRM, finance, HR and analytics.</p>
   </section>
 </main>
 
 <footer class="footer">
   <div class="footer-top">
     <div class="footer-brand">
-      <a class="brand" href="#top"><svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><rect x="5" y="3" width="22" height="26" rx="4" fill="#121417"/><circle cx="16" cy="14" r="5" fill="none" stroke="#F5F3EE" stroke-width="2"/><path d="M10.5 23h11" stroke="#F5F3EE" stroke-width="2" stroke-linecap="round"/></svg><span>Passport Control</span></a>
-      <p>The permissions layer for AI agents.</p>
+      <span class="logo static" aria-hidden="true"><svg viewBox="0 0 32 32" width="24" height="24"><path d="M3 16c3.4-5.8 7.8-8.7 13-8.7S25.6 10.2 29 16c-3.4 5.8-7.8 8.7-13 8.7S6.4 21.8 3 16Z" fill="none" stroke="#101215" stroke-width="2.4"/><circle cx="16" cy="16" r="4.2" fill="#101215"/></svg></span>
+      <p>Know which AI agents use your product, and what they're allowed to do.</p>
+      <a class="btn btn-dark" href="#access">Request access</a>
     </div>
     <div class="footer-cols">
-      <div><b>Product</b><a href="#how">How it works</a><a href="#visas">Visas</a><a href="#seats">Seats</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a></div>
-      <div><b>Resources</b><a href="#access">Setup guide</a><a href="#access">Agent catalogue</a><a href="#access">Product overview</a></div>
+      <div><b>Product</b><a href="#how">How it works</a><a href="#control">Control</a><a href="#seats">Seats</a><a href="#pricing">Pricing</a></div>
+      <div><b>Resources</b><a href="#faq">FAQ</a><a href="#access">Setup guide</a><a href="#access">Agent catalogue</a></div>
       <div><b>Company</b><a href="#access">About</a><a href="#access">Contact</a><a href="#access">Privacy</a><a href="#access">Terms</a></div>
     </div>
   </div>
-  <div class="mrz-footer mono" aria-hidden="true"><span>P&lt;APC&lt;AGENT&lt;&lt;PASSPORT&lt;CONTROL&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span><span>VERIFY&lt;RECORD&lt;PERMIT&lt;&lt;&lt;2026&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</span></div>
-  <div class="footer-bottom"><span>© 2026 Agent Passport Control</span><span>Collect behaviour, never content.</span></div>
+  <div class="footer-bottom"><span>© 2026 Observe</span><span>Reads behaviour, never content.</span></div>
 </footer>
 
 <script src="main.js" defer></script>
