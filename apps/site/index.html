@@ -58,14 +58,60 @@
   <!-- Hero -->
   <section class="hero" id="top">
     <div class="glow" aria-hidden="true"></div>
-    <span class="badge rise"><i class="live"></i> Private beta</span>
     <h1 class="rise">Know which AI agents use your product,<br><em>and what they're allowed to do.</em></h1>
     <p class="lede rise">Claude, Comet, ChatGPT and Gemini now work inside your product with your customers' own logins. See which agent is acting and for whom, keep a record of what it does, and decide which actions it may take.</p>
     <div class="actions rise">
       <a class="btn btn-dark btn-lg" href="#access">Request early access</a>
       <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
     </div>
-    <p class="fine rise">One script tag &nbsp;·&nbsp; Recognises 70 agents &nbsp;·&nbsp; Reads behaviour, never content</p>
+
+    <!-- The product's Overview screen -->
+    <div class="hero-dash zoom" aria-label="The Observe overview: sessions now, the share driven by agents, people and agents per hour, top agents and live activity">
+      <div class="window dash">
+        <div class="window-side">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <div class="side-label">Ledgerline</div>
+          <ul class="side-nav"><li class="on">Overview</li><li>Sessions</li><li>Agents</li><li>Accounts</li><li>Activity</li><li>Rules</li></ul>
+          <div class="side-label">Live</div>
+          <div class="side-live"><i class="live"></i> 1,284 sessions now</div>
+        </div>
+        <div class="dash-main">
+          <div class="dash-top">
+            <b>Overview</b>
+            <div class="tools"><span class="seg"><span>1h</span><b>24h</b><span>7d</span></span><span class="live-pill"><i class="live"></i>Live</span></div>
+          </div>
+          <div class="tiles">
+            <div class="tile"><small>Sessions now</small><b>1,284</b><span>+8% on yesterday</span></div>
+            <div class="tile"><small>Driven by agents</small><b>31%</b><span>+4 points on last week</span></div>
+            <div class="tile"><small>Agents seen</small><b>18</b><span>across 412 accounts</span></div>
+            <div class="tile"><small>Actions blocked</small><b>42</b><span>today</span></div>
+          </div>
+          <div class="dash-grid">
+            <div class="panel chart-panel">
+              <div class="panel-head">
+                <div><b>People and agents</b><small>Sessions per hour, last 24 hours</small></div>
+                <div class="legend"><span><i class="k-people"></i>People</span><span><i class="k-agents"></i>Agents</span></div>
+              </div>
+              <div class="chart" id="dash-chart"></div>
+            </div>
+            <div class="panel agents-panel">
+              <div class="panel-head"><div><b>Top agents</b><small>Share of agent sessions</small></div></div>
+              <ul class="top-agents">
+                <li><span>Claude in Chrome</span><i style="--w:38%"></i><b>38%</b></li>
+                <li><span>Perplexity Comet</span><i style="--w:21%"></i><b>21%</b></li>
+                <li><span>ChatGPT agent</span><i style="--w:14%"></i><b>14%</b></li>
+                <li><span>Gemini in Chrome</span><i style="--w:9%"></i><b>9%</b></li>
+                <li><span>Unknown automation</span><i style="--w:6%"></i><b>6%</b></li>
+              </ul>
+            </div>
+          </div>
+          <div class="panel feed-panel">
+            <div class="panel-head"><div><b>Live activity</b><small>Agent actions as they happen</small></div></div>
+            <ul class="feed" id="dash-feed"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- Pinned product scene: the console window grows into view as you scroll -->

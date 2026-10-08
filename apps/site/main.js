@@ -348,6 +348,143 @@ document.addEventListener("keydown", (e) => e.key === "Escape" && menuOpen && se
   document.getElementById("agent-hours").textContent = `${agentHours} h`;
 })();
 
+// ───── Hero dashboard: people and agents per hour (stacked columns) ─────
+(function dashChart() {
+  const host = document.getElementById("dash-chart");
+  if (!host) return;
+  const bell = (h, c, w) => Math.exp(-((h - c) ** 2) / (2 * w * w));
+  // People work the day; agents run early, late and through the night.
+  const data = Array.from({ length: 24 }, (_, h) => ({
+    h,
+    people: Math.round(18 + 150 * bell(h, 13, 3.6) + 30 * bell(h, 9.5, 1.5)),
+    agents: Math.round(28 + 44 * bell(h, 2.5, 2.6) + 62 * bell(h, 20.5, 2.4) + 26 * bell(h, 11, 3)),
+  }));
+  const PEOPLE = "#2a78d6";
+  const AGENTS = "#008300";
+  const hour = (h) => `${String(h).padStart(2, "0")}:00`;
+
+  function render() {
+    const W = host.clientWidth || 600;
+    const H = host.clientHeight || 184;
+    const left = 30, bottom = 22, top = 8;
+    const plotW = W - left, plotH = H - top - bottom;
+    const max = 250;
+    const y = (v) => top + plotH - (v / max) * plotH;
+    const slot = plotW / 24;
+    const bw = Math.min(16, slot * 0.6);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><g class="grid">`;
+    for (const t of [0, 100, 200]) svg += `<line x1="${left}" x2="${W}" y1="${y(t)}" y2="${y(t)}"/>`;
+    svg += `</g><g class="axis">`;
+    for (const t of [0, 100, 200]) svg += `<text x="${left - 8}" y="${y(t) + 3.5}" text-anchor="end">${t}</text>`;
+    for (const h of [0, 6, 12, 18]) svg += `<text x="${left + slot * h + slot / 2}" y="${H - 6}" text-anchor="middle">${String(h).padStart(2, "0")}</text>`;
+    svg += `</g>`;
+    data.forEach((d, i) => {
+      const x = left + slot * i + (slot - bw) / 2;
+      const yp = y(d.people);
+      // A 2px gap in the surface colour separates the two segments; the top end is rounded, the base square.
+      const ya = y(d.people + d.agents) - 2;
+      const ab = yp - 2;
+      const r = Math.min(3, bw / 2, ab - ya);
+      svg += `<g class="col" data-i="${i}">`;
+      svg += `<rect class="seg-bar" style="--i:${i}" x="${x}" y="${yp}" width="${bw}" height="${y(0) - yp}" fill="${PEOPLE}"/>`;
+      svg += `<path class="seg-bar" style="--i:${i}" fill="${AGENTS}" d="M${x} ${ab}V${ya + r}Q${x} ${ya} ${x + r} ${ya}H${x + bw - r}Q${x + bw} ${ya} ${x + bw} ${ya + r}V${ab}Z"/>`;
+      svg += `<rect class="hit" x="${left + slot * i}" y="${top}" width="${slot}" height="${plotH}"/></g>`;
+    });
+    svg += `</svg>`;
+    // The same numbers as a table, for screen readers.
+    svg += `<table class="sr"><caption>Sessions per hour, last 24 hours</caption><tr><th>Hour</th><th>People</th><th>Agents</th></tr>${data
+      .map((d) => `<tr><td>${hour(d.h)}</td><td>${d.people}</td><td>${d.agents}</td></tr>`)
+      .join("")}</table><div class="tip" role="status"></div>`;
+    host.innerHTML = svg;
+
+    const tip = host.querySelector(".tip");
+    host.querySelectorAll(".col").forEach((col) => {
+      col.addEventListener("mouseenter", () => {
+        const d = data[Number(col.dataset.i)];
+        host.querySelectorAll(".col.on").forEach((c) => c.classList.remove("on"));
+        col.classList.add("on");
+        host.classList.add("hovering");
+        tip.innerHTML = `<b>${hour(d.h)}</b><br><i style="background:${PEOPLE}"></i>People ${d.people}<br><i style="background:${AGENTS}"></i>Agents ${d.agents}`;
+        tip.style.left = `${left + slot * d.h + slot / 2}px`;
+        tip.style.top = `${y(d.people + d.agents)}px`;
+        tip.classList.add("show");
+      });
+    });
+    host.addEventListener("mouseleave", () => {
+      host.classList.remove("hovering");
+      host.querySelectorAll(".col.on").forEach((c) => c.classList.remove("on"));
+      tip.classList.remove("show");
+    });
+  }
+  render();
+  addEventListener("resize", render);
+  if (!reduceMotion) {
+    new IntersectionObserver(([e], io) => {
+      if (!e.isIntersecting) return;
+      host.classList.add("grow");
+      io.disconnect();
+    }).observe(host);
+  }
+})();
+
+// ───── Hero dashboard: live activity, a new agent action every few seconds ─────
+(function liveFeed() {
+  const list = document.getElementById("dash-feed");
+  if (!list) return;
+  const events = [
+    ["Claude in Chrome", "morgan@acme.com", "Export invoices", "ok", "Allowed"],
+    ["Unknown automation", "lee@tailspin.dev", "Invite user", "no", "Blocked"],
+    ["ChatGPT agent", "dana@fabrikam.co", "Change payout", "ask", "Asked"],
+    ["Perplexity Comet", "ops@contoso.com", "Search invoices", "ok", "Allowed"],
+    ["Gemini in Chrome", "priya@acme.com", "Edit customer", "ok", "Allowed"],
+    ["Claude in Chrome", "morgan@acme.com", "Delete records", "no", "Blocked"],
+    ["Perplexity Comet", "kim@northwind.io", "Export report", "ask", "Asked"],
+  ];
+  let minute = 10 * 60 + 38;
+  let i = 0;
+  const row = ([who, person, action, kind, label], m, isNew) =>
+    `<li${isNew ? ' class="new"' : ""}><time>${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}</time>` +
+    `<span class="who agent">${who}</span><span class="for">${person}</span><span>${action}</span><span class="pill-s ${kind}">${label}</span></li>`;
+  const first = [];
+  for (; i < 4; i++) first.unshift(row(events[i], minute + i, false));
+  list.innerHTML = first.join("");
+  minute += 3;
+  if (reduceMotion) return;
+  setInterval(() => {
+    if (document.hidden) return;
+    minute += Math.random() < 0.6 ? 1 : 0;
+    list.insertAdjacentHTML("afterbegin", row(events[i++ % events.length], minute, true));
+    list.lastElementChild?.remove();
+  }, 2800);
+})();
+
+// ───── Links within the page: bring the section's top to the top of the screen ─────
+// Sections are at least a screen tall with their content centred below the bar (see styles.css), so landing on
+// the section's top shows that section alone. The bar stays put while the page glides there.
+let autoScroll = false;
+let autoTimer = 0;
+
+function goTo(section) {
+  const y = section.getBoundingClientRect().top + scrollY;
+  autoScroll = true;
+  nav.classList.remove("hidden");
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => (autoScroll = false), 1500);
+  scrollTo({ top: clamp(y, 0, document.documentElement.scrollHeight - innerHeight), behavior: reduceMotion ? "auto" : "smooth" });
+}
+
+document.addEventListener("click", (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  const id = a?.getAttribute("href").slice(1);
+  const target = id && document.getElementById(id);
+  if (!target) return;
+  e.preventDefault();
+  if (id === "top") scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+  else goTo(target);
+  history.replaceState(null, "", `#${id}`);
+});
+addEventListener("scrollend", () => setTimeout(() => (autoScroll = false), 50));
+
 // ───── Scroll: hide the bar going down, show it going up; drive the scroll-linked motion ─────
 const scene = document.getElementById("scene");
 const sceneWindow = document.getElementById("scene-window");
@@ -364,7 +501,7 @@ function frame() {
 
   // The bar: away on the way down, back on the way up, always there near the top.
   const dy = y - lastY;
-  if (!menuOpen) {
+  if (!menuOpen && !autoScroll) {
     if (y < 80 || dy < -4) nav.classList.remove("hidden");
     else if (dy > 4) nav.classList.add("hidden");
   }
