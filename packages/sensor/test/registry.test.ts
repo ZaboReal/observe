@@ -31,8 +31,16 @@ describe("driver registry", () => {
 
   it("keeps stack and console markers specific enough to avoid matching ordinary sites", () => {
     for (const d of DRIVERS) {
-      for (const m of [...(d.stackMarkers ?? []), ...(d.consoleMarkers ?? [])]) expect(m.length, `${d.id}: ${m}`).toBeGreaterThanOrEqual(5);
+      for (const m of [...(d.stackMarkers ?? []), ...(d.consoleMarkers ?? []), ...(d.wrapperMarkers ?? [])]) expect(m.length, `${d.id}: ${m}`).toBeGreaterThanOrEqual(5);
       for (const m of d.stackMarkers ?? []) expect(/^(app|main|index|bundle)\.js$/.test(m), `${d.id}: ${m}`).toBe(false);
+    }
+  });
+
+  it("builds products only on drivers it knows, one level deep", () => {
+    const ids = new Set(DRIVERS.map((d) => d.id));
+    for (const d of DRIVERS.filter((x) => x.builtOn)) {
+      expect(ids.has(d.builtOn!), `${d.id} → ${d.builtOn}`).toBe(true);
+      expect(DRIVERS.find((x) => x.id === d.builtOn)?.builtOn, `${d.builtOn} is itself built on something`).toBeUndefined();
     }
   });
 

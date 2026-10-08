@@ -44,7 +44,7 @@ let out = `# Agent identifier registry
 
 Generated from \`packages/sensor/src/registry/drivers.ts\` (${DRIVERS.length} drivers). Do not edit by hand; run \`node scripts/registry-doc.mjs\` after \`pnpm build\`.
 
-**Acting** markers mean an agent is driving the page now. **Installed** markers only show a product is present and are used to name a driver once behaviour already says an agent is driving. Confidence: \`source\` (read in code), \`teardown\` (inspected live), \`docs\`, \`secondary\` (one secondary source), \`unverified\`.
+**Acting** markers mean an agent is driving the page now. **Installed** markers only show a product is present and are used to name a driver once behaviour already says an agent is driving. Confidence: \`source\` (read in code), \`teardown\` (inspected live), \`lab\` (seen in our own runs), \`docs\`, \`secondary\` (one secondary source), \`unverified\`.
 
 `;
 
@@ -54,7 +54,7 @@ for (const [kind, title] of Object.entries(KIND_TITLE)) {
   out += `## ${title}\n\n`;
   for (const d of list) {
     out += `### ${d.name}\n\n`;
-    out += `\`${d.id}\` · ${d.provider} · confidence: ${d.confidence}${d.verifiedVersion ? ` · checked against ${d.verifiedVersion}` : ""}\n\n`;
+    out += `\`${d.id}\` · ${d.provider} · confidence: ${d.confidence}${d.verifiedVersion ? ` · checked against ${d.verifiedVersion}` : ""}${d.builtOn ? ` · built on \`${d.builtOn}\`` : ""}\n\n`;
     const rows = [
       ["Acting: page elements", dom(d.activeDom)],
       ["Acting: globals", code([...(d.windowGlobals ?? []), ...(d.documentGlobals ?? []).map((x) => "document." + x)])],
@@ -62,6 +62,7 @@ for (const [kind, title] of Object.entries(KIND_TITLE)) {
       ["Acting: console markers", code(d.consoleMarkers)],
       ["Acting: user-agent tokens", code(d.declaredUserAgent)],
       ["Acting: stack markers", code(d.stackMarkers)],
+      ["Acting: wrapped built-ins", code(d.wrapperMarkers)],
       ["Residue (lingers after use)", [dom(d.residueDom), code(d.styleIds?.map((x) => "#" + x))].filter(Boolean).join(", ")],
       ["Keyframes", code(d.keyframes)],
       ["Installed: page elements", [dom(d.presence?.dom), code(d.presence?.styleIds?.map((x) => "#" + x))].filter(Boolean).join(", ")],

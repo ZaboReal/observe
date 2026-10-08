@@ -1,5 +1,5 @@
 import { makeReason } from "../detect/rules";
-import type { RegistryIndex } from "../registry";
+import { matchMarkers, type RegistryIndex } from "../registry";
 import type { Reason } from "../types";
 
 export interface ProbeResult {
@@ -69,7 +69,7 @@ export function probeAutomation(registry: RegistryIndex, t: number): ProbeResult
     }
   }
 
-  out.push(...probeIntegrity(t));
+  out.push(...probeIntegrity(t), ...probeWrappers(registry, t));
 
   const browser = (id: string, detail: string) => {
     if (!out.some((o) => o.key === `env.browser:${id}`)) {
@@ -214,6 +214,44 @@ export function probeIntegrity(t: number): ProbeResult[] {
   }
   if (wrapped.length) out.push({ key: "env.modified-api", reason: makeReason("env.modified-api", t, { detail: wrapped.join(", ") }) });
   return out;
+}
+
+/** Built-ins that automation code replaces in the main world, read by `probeWrappers`. */
+const WRAPPABLE: Array<[string, () => unknown]> = [
+  ["Element.prototype.attachShadow", () => (typeof Element !== "undefined" ? Element.prototype.attachShadow : undefined)],
+  ["customElements.define", () => (typeof customElements !== "undefined" ? customElements.define : undefined)],
+  ["Object.defineProperty", () => Object.defineProperty],
+  ["window.open", () => (typeof window !== "undefined" ? window.open : undefined)],
+];
+
+/**
+ * Wrappers a known framework put around built-ins. WebdriverIO's BiDi preload script replaces attachShadow and
+ * customElements.define with code that logs "[WDIO]"; the wrappers stay for the life of the page, so the sensor
+ * finds them however late it loads.
+ */
+export function probeWrappers(registry: RegistryIndex, t: number): ProbeResult[] {
+  if (registry.wrapperMarkers.length === 0) return [];
+  const found = new Map<string, string>();
+  for (const [api, get] of WRAPPABLE) {
+    let fn: unknown;
+    try {
+      fn = get();
+    } catch {
+      continue;
+    }
+    if (typeof fn !== "function" || isNative(fn)) continue;
+    let src = "";
+    try {
+      src = Function.prototype.toString.call(fn).slice(0, 4000);
+    } catch {
+      continue;
+    }
+    for (const [id, marker] of matchMarkers(registry, registry.wrapperMarkers, src)) if (!found.has(id)) found.set(id, `${api} (${marker})`);
+  }
+  return [...found].map(([id, detail]) => ({
+    key: `env.driver-wrapper:${id}`,
+    reason: makeReason("env.driver-wrapper", t, { detail, drivers: { [id]: 6 } }),
+  }));
 }
 
 /**

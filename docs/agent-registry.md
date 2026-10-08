@@ -2,7 +2,7 @@
 
 Generated from `packages/sensor/src/registry/drivers.ts` (70 drivers). Do not edit by hand; run `node scripts/registry-doc.mjs` after `pnpm build`.
 
-**Acting** markers mean an agent is driving the page now. **Installed** markers only show a product is present and are used to name a driver once behaviour already says an agent is driving. Confidence: `source` (read in code), `teardown` (inspected live), `docs`, `secondary` (one secondary source), `unverified`.
+**Acting** markers mean an agent is driving the page now. **Installed** markers only show a product is present and are used to name a driver once behaviour already says an agent is driving. Confidence: `source` (read in code), `teardown` (inspected live), `lab` (seen in our own runs), `docs`, `secondary` (one secondary source), `unverified`.
 
 ## Extension agents
 
@@ -517,27 +517,29 @@ Sources: <https://github.com/Skyvern-AI/skyvern> · <https://arxiv.org/abs/2605.
 
 ### Chrome DevTools MCP
 
-`chrome-devtools-mcp` · Google · confidence: source
+`chrome-devtools-mcp` · Google · confidence: lab · checked against 1.10.1 (bundled Puppeteer, Chrome 154) · built on `puppeteer`
 
 | | |
 | --- | --- |
 | Acting: globals | `__dtmcp` |
-| Acting: stack markers | `__puppeteer_utility_world__` |
-| Input mechanics | press 0–3 ms; pointer teleports; clicks at exact centre |
+| Acting: stack markers | `pptr:evaluateHandle;WaitForHelper.waitForStableDom`, `chrome-devtools-mcp%2Fbuild%2Fsrc` |
+| Input mechanics | press 0–3 ms; pointer teleports; clicks at exact centre; screens 3840x2160 |
 
-Puppeteer with focus emulation always on. Clicks send no force (pressure 0). After each action it runs a main-world MutationObserver on body.
+Built on Puppeteer, so Puppeteer's __ariaQuerySelector globals and its clicks (pressure 0, ~1 ms presses) and key-by-key typing appear too. Its own marker is in stack traces: after every action it starts a main-world MutationObserver from pptr:evaluateHandle;WaitForHelper.waitForStableDom, whose source URL holds the chrome-devtools-mcp path. Headless runs report a 3840×2160 screen (--screen-info). Focus emulation is always on. __dtmcp appears only with the experimental third-party tools category.
 
-Sources: <https://github.com/ChromeDevTools/chrome-devtools-mcp>
+Sources: <https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/src/utils/WaitForHelper.ts> · <https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/src/BrowserManager.ts>
 
 ### Vercel agent-browser
 
-`agent-browser` · Vercel · confidence: source
+`agent-browser` · Vercel · confidence: lab · checked against 0.38.2 (Chrome 154)
 
 | | |
 | --- | --- |
-| Acting: page elements | `[data-agent-browser-recording-cursor]` |
+| Acting: page elements | `[data-agent-browser-located]`, `[data-agent-browser-recording-cursor]` |
+| Installed: globals | `ModelContext`, `WebMCPEvent` |
+| Input mechanics | press 0–3 ms; typing: insert-bulk; pointer teleports; clicks at exact centre |
 
-Fill sends an untrusted input event, then a trusted insertText.
+A Rust CLI over raw CDP, not Puppeteer or Playwright. Launches Chrome with WebMCP testing on, so window.ModelContext exists. fill: an untrusted input event on the cleared field, then the whole string in one trusted insertText, no key presses. select fires only an untrusted change event. Clicks: CDP mouse events at the centre, pressure 0. find text/label/placeholder tags the target with data-agent-browser-located for a few ms; snapshot refs and CSS selectors leave nothing in the DOM.
 
 Sources: <https://github.com/vercel-labs/agent-browser>
 
@@ -608,14 +610,18 @@ Sources: <https://blog.crawlex.net/blog/kasada-anti-instrumentation/> · <https:
 
 ### WebdriverIO
 
-`webdriverio` · OpenJS · confidence: source
+`webdriverio` · OpenJS · confidence: lab · checked against 10.0.0 over BiDi (ChromeDriver, Chrome 154) · built on `selenium`
 
 | | |
 | --- | --- |
-| Acting: globals | `webdriverio`, `__wdio_element`, `__wdio_sinon` |
+| Acting: globals | `__wdio_element`, `__wdio_sinon` |
 | Acting: console markers | `[WDIO]` |
+| Acting: wrapped built-ins | `[WDIO]` |
+| Installed: globals | `__name` |
 
-Sources: <https://github.com/webdriverio/webdriverio> · <https://api.switchfrog.com/sdk/v1.js>
+Drives Chrome through ChromeDriver, so ChromeDriver's cdc_ globals (listed under Selenium) and its clicks and typing appear too. Its own marker: a BiDi preload script replaces Element.prototype.attachShadow and customElements.define with wrappers that log "[WDIO]", readable from page start. It also defines a global __name helper. Scrolls into view with one large trusted wheel step.
+
+Sources: <https://github.com/webdriverio/webdriverio/blob/main/packages/webdriverio/src/scripts/customElement.ts> · <https://github.com/webdriverio/webdriverio/blob/main/packages/webdriverio/src/scripts/polyfill.ts>
 
 ### Cypress
 

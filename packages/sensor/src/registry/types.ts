@@ -77,6 +77,16 @@ export interface DriverSignature {
   documentGlobals?: string[];
   /** Substrings in stack traces of code injected by this driver. */
   stackMarkers?: string[];
+  /**
+   * Substrings in the source of built-in APIs (`Element.prototype.attachShadow`, `customElements.define`, …) that this
+   * driver replaces in the page's main world, read with `Function.prototype.toString`. Decisive.
+   */
+  wrapperMarkers?: string[];
+  /**
+   * Id of the library this product drives the browser through (Puppeteer under Chrome DevTools MCP, ChromeDriver under
+   * WebdriverIO). The library's own markers appear too; once this product shows its own, they count towards it.
+   */
+  builtOn?: string;
   /** Regex sources for `window.postMessage` `data.type` values this driver sends while acting. */
   messageTypes?: string[];
   /** Substrings this driver's main-world code writes to the page console while acting. */

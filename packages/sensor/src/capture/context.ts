@@ -1,4 +1,4 @@
-import type { RegistryIndex } from "../registry";
+import { matchMarkers, type RegistryIndex } from "../registry";
 import { pageState } from "../util/env";
 import type { ActionRecord, LabStreamEvent, PageFlags } from "./records";
 
@@ -92,8 +92,7 @@ export class CaptureContext {
     } catch {
       return undefined;
     }
-    const hits = new Set<string>();
-    for (const [marker, id] of this.registry.stackMarkers) if (stack.includes(marker)) hits.add(id);
-    return hits.size ? [...hits] : undefined;
+    const hits = matchMarkers(this.registry, this.registry.stackMarkers, stack);
+    return hits.size ? [...hits.keys()] : undefined;
   }
 }

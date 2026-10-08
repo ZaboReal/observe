@@ -378,12 +378,16 @@ export const DRIVERS: DriverSignature[] = [
     name: "Chrome DevTools MCP",
     provider: "Google",
     kind: "framework",
+    builtOn: "puppeteer",
+    // Puppeteer's source URLs carry the caller's location: pptr:evaluateHandle;WaitForHelper.waitForStableDom%20(file%3A…%2Fchrome-devtools-mcp%2Fbuild%2Fsrc%2Futils%2FWaitForHelper.js…)
+    stackMarkers: ["pptr:evaluateHandle;WaitForHelper.waitForStableDom", "chrome-devtools-mcp%2Fbuild%2Fsrc"],
     windowGlobals: ["__dtmcp"],
-    stackMarkers: ["__puppeteer_utility_world__"],
-    mechanics: { pressMs: [0, 3], clickCentre: true, teleports: true },
-    confidence: "source",
-    sources: ["https://github.com/ChromeDevTools/chrome-devtools-mcp"],
-    notes: "Puppeteer with focus emulation always on. Clicks send no force (pressure 0). After each action it runs a main-world MutationObserver on body.",
+    mechanics: { pressMs: [0, 3], clickCentre: true, teleports: true, screens: ["3840x2160"] },
+    confidence: "lab",
+    verifiedVersion: "1.10.1 (bundled Puppeteer, Chrome 154)",
+    sources: ["https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/src/utils/WaitForHelper.ts", "https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/main/src/BrowserManager.ts"],
+    notes:
+      "Built on Puppeteer, so Puppeteer's __ariaQuerySelector globals and its clicks (pressure 0, ~1 ms presses) and key-by-key typing appear too. Its own marker is in stack traces: after every action it starts a main-world MutationObserver from pptr:evaluateHandle;WaitForHelper.waitForStableDom, whose source URL holds the chrome-devtools-mcp path. Headless runs report a 3840×2160 screen (--screen-info). Focus emulation is always on. __dtmcp appears only with the experimental third-party tools category.",
   },
   {
     id: "mcp-chrome",
@@ -421,10 +425,16 @@ export const DRIVERS: DriverSignature[] = [
     name: "Vercel agent-browser",
     provider: "Vercel",
     kind: "framework",
-    activeDom: { attributes: ["data-agent-browser-recording-cursor"] },
-    confidence: "source",
+    // `find text|label|placeholder|testid|nth` tags the target for a few ms; the recording cursor only exists while recording.
+    activeDom: { attributes: ["data-agent-browser-located", "data-agent-browser-recording-cursor"] },
+    // It launches Chrome with --enable-features=WebMCPTesting. Only a hint while stable Chrome ships WebMCP off; drop it once WebMCP is on by default.
+    presence: { windowGlobals: ["ModelContext", "WebMCPEvent"] },
+    mechanics: { pressMs: [0, 3], typing: "insert-bulk", clickCentre: true, teleports: true },
+    confidence: "lab",
+    verifiedVersion: "0.38.2 (Chrome 154)",
     sources: ["https://github.com/vercel-labs/agent-browser"],
-    notes: "Fill sends an untrusted input event, then a trusted insertText.",
+    notes:
+      "A Rust CLI over raw CDP, not Puppeteer or Playwright. Launches Chrome with WebMCP testing on, so window.ModelContext exists. fill: an untrusted input event on the cleared field, then the whole string in one trusted insertText, no key presses. select fires only an untrusted change event. Clicks: CDP mouse events at the centre, pressure 0. find text/label/placeholder tags the target with data-agent-browser-located for a few ms; snapshot refs and CSS selectors leave nothing in the DOM.",
   },
 
   // ───────────────────────── Agentic browsers and built-in agents ─────────────────────────
@@ -688,10 +698,20 @@ export const DRIVERS: DriverSignature[] = [
     name: "WebdriverIO",
     provider: "OpenJS",
     kind: "framework",
-    windowGlobals: ["webdriverio", "__wdio_element", "__wdio_sinon"],
+    builtOn: "selenium",
+    // Its BiDi preload script (on by default since v9) wraps these built-ins with code that logs "[WDIO]".
+    wrapperMarkers: ["[WDIO]"],
+    // __wdio_sinon only with emulate('clock'); __wdio_element only when an element is passed as a selector.
+    windowGlobals: ["__wdio_element", "__wdio_sinon"],
+    // The wrappers log only when the page attaches a shadow root.
     consoleMarkers: ["[WDIO]"],
-    confidence: "source",
-    sources: ["https://github.com/webdriverio/webdriverio", "https://api.switchfrog.com/sdk/v1.js"],
+    // esbuild's name helper, defined before every script it runs. Generic, so a naming hint only.
+    presence: { windowGlobals: ["__name"] },
+    confidence: "lab",
+    verifiedVersion: "10.0.0 over BiDi (ChromeDriver, Chrome 154)",
+    sources: ["https://github.com/webdriverio/webdriverio/blob/main/packages/webdriverio/src/scripts/customElement.ts", "https://github.com/webdriverio/webdriverio/blob/main/packages/webdriverio/src/scripts/polyfill.ts"],
+    notes:
+      "Drives Chrome through ChromeDriver, so ChromeDriver's cdc_ globals (listed under Selenium) and its clicks and typing appear too. Its own marker: a BiDi preload script replaces Element.prototype.attachShadow and customElements.define with wrappers that log \"[WDIO]\", readable from page start. It also defines a global __name helper. Scrolls into view with one large trusted wheel step.",
   },
   {
     id: "cypress",

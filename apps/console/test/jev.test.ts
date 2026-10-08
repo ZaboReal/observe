@@ -158,6 +158,22 @@ describe("decide", () => {
     expect(decide({ observations: new Map([["overlay", overlay]]), rules: { ...rules, tier: "verified" }, jev })).toMatchObject({ tier: "verified", decidedBy: "signature" });
   });
 
+  it("names the product rather than the library under it once the product's own marker is seen", () => {
+    const webdriver: Observation = { id: "env.webdriver", label: "navigator.webdriver is true", decisive: true, drivers: [] };
+    const aria: Observation = { id: "env.automation-global", label: "Automation framework global in the page", decisive: true, drivers: ["puppeteer"] };
+    const mcp: Observation = { id: "env.stack-marker", label: "Automation framework in the call stack", decisive: true, drivers: ["chrome-devtools-mcp"] };
+    const saysPuppeteer: JevResult = { ...jev, agentProbability: 0.99, choice: "puppeteer", candidates: [{ id: "puppeteer", p: 1 }] };
+    const withMcp = new Map([["wd", webdriver], ["aria", aria], ["mcp", mcp]]);
+    expect(decide({ observations: withMcp, rules: null, jev: saysPuppeteer })).toMatchObject({ verdict: "agent", driverId: "chrome-devtools-mcp", decidedBy: "exact-match" });
+    // Plain Puppeteer shows the same globals and no product marker: it stays Puppeteer.
+    expect(decide({ observations: new Map([["wd", webdriver], ["aria", aria]]), rules: null, jev: saysPuppeteer })).toMatchObject({ driverId: "puppeteer" });
+
+    const cdc: Observation = { id: "env.automation-global", label: "Automation framework global in the page", decisive: true, drivers: ["selenium"] };
+    const wdio: Observation = { id: "env.driver-wrapper", label: "Built-in API replaced by automation framework code", decisive: true, drivers: ["webdriverio"] };
+    const saysSelenium: JevResult = { ...jev, agentProbability: 0.99, choice: "selenium", candidates: [{ id: "selenium", p: 0.5 }] };
+    expect(decide({ observations: new Map([["wd", webdriver], ["cdc", cdc], ["wdio", wdio]]), rules: null, jev: saysSelenium })).toMatchObject({ driverId: "webdriverio" });
+  });
+
   it("decides nothing with no evidence at all", () => {
     expect(decide({ observations: new Map(), rules: null, jev: null })).toBeNull();
   });

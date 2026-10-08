@@ -1,3 +1,4 @@
+import { DRIVERS } from "@observe/sensor";
 import { ensureDriver } from "./catalog";
 import { summarise } from "./generate";
 import { namedDriver, toVerdict } from "./jev-questions";
@@ -26,6 +27,23 @@ export function exactMatch(rec: Pick<SensorRecord, "observations">): { label: st
   return null;
 }
 
+/** Products and the library each drives the browser through (Chrome DevTools MCP → Puppeteer, WebdriverIO → ChromeDriver). */
+const BUILT_ON = new Map(DRIVERS.flatMap((d) => (d.builtOn ? [[d.id, d.builtOn] as const] : [])));
+
+/**
+ * A product shows its library's markers as well as its own, so Jev or the first exact match can name the library.
+ * When a decisive observation names a product built on that library, name the product.
+ */
+export function preferProduct(driverId: string | null, observations: SensorRecord["observations"]): string | null {
+  if (!driverId) return null;
+  for (const o of observations.values()) {
+    if (!o.decisive) continue;
+    const product = o.drivers.find((d) => BUILT_ON.get(d) === driverId);
+    if (product) return product;
+  }
+  return driverId;
+}
+
 export function decide(rec: Pick<SensorRecord, "observations" | "rules" | "jev">): Decision | null {
   const rules = rec.rules;
   if (rules?.tier === "verified") {
@@ -34,7 +52,8 @@ export function decide(rec: Pick<SensorRecord, "observations" | "rules" | "jev">
   const exact = exactMatch(rec);
   if (exact) {
     // The match proves an agent; markers like navigator.webdriver do not say which, so Jev names it when it can.
-    const driverId = (rec.jev && namedDriver(rec.jev)) ?? exact.driverId ?? (rules?.verdict === "agent" ? rules.driverId : null);
+    const named = (rec.jev && namedDriver(rec.jev)) ?? exact.driverId ?? (rules?.verdict === "agent" ? rules.driverId : null);
+    const driverId = preferProduct(named, rec.observations);
     return { verdict: "agent", tier: driverId ? "recognised" : "unknown-automation", driverId, confidence: 0.99, decidedBy: "exact-match" };
   }
   if (rec.jev) return { ...toVerdict(rec.jev), decidedBy: "jev" };

@@ -26,6 +26,7 @@ export interface RegistryIndex {
   presenceGlobals: Map<string, string>;
   documentGlobals: Map<string, string>;
   stackMarkers: Array<[string, string]>;
+  wrapperMarkers: Array<[string, string]>;
   messageTypes: Array<[RegExp, string]>;
   consoleMarkers: Array<[string, string]>;
   keyframes: Map<string, string>;
@@ -81,6 +82,24 @@ export function matchDom(idx: DomIndex, el: Element): { id: string; what: string
   return null;
 }
 
+/**
+ * Drops each library whose product is also among `ids` (Puppeteer when Chrome DevTools MCP matched too):
+ * a product built on a library shows the library's markers as well as its own.
+ */
+export function preferProducts(registry: Pick<RegistryIndex, "byId">, ids: readonly string[]): string[] {
+  const bases = new Set(ids.map((id) => registry.byId.get(id)?.builtOn).filter((b): b is string => Boolean(b)));
+  return ids.filter((id) => !bases.has(id));
+}
+
+/** Markers from `list` that occur in `text`, as driver id → first matching marker, with libraries dropped for their products. */
+export function matchMarkers(registry: Pick<RegistryIndex, "byId">, list: ReadonlyArray<[string, string]>, text: string): Map<string, string> {
+  const hits = new Map<string, string>();
+  for (const [marker, id] of list) if (!hits.has(id) && text.includes(marker)) hits.set(id, marker);
+  const keep = new Set(preferProducts(registry, [...hits.keys()]));
+  for (const id of [...hits.keys()]) if (!keep.has(id)) hits.delete(id);
+  return hits;
+}
+
 function compile(patterns: string[] | undefined, id: string, into: Array<[RegExp, string]>): void {
   for (const v of patterns ?? []) {
     try {
@@ -102,6 +121,7 @@ export function buildIndex(drivers: readonly DriverSignature[] = DRIVERS): Regis
     presenceGlobals: new Map(),
     documentGlobals: new Map(),
     stackMarkers: [],
+    wrapperMarkers: [],
     messageTypes: [],
     consoleMarkers: [],
     keyframes: new Map(),
@@ -121,6 +141,7 @@ export function buildIndex(drivers: readonly DriverSignature[] = DRIVERS): Regis
     for (const v of d.presence?.windowGlobals ?? []) idx.presenceGlobals.set(v, d.id);
     for (const v of d.documentGlobals ?? []) idx.documentGlobals.set(v, d.id);
     for (const v of d.stackMarkers ?? []) idx.stackMarkers.push([v, d.id]);
+    for (const v of d.wrapperMarkers ?? []) idx.wrapperMarkers.push([v, d.id]);
     compile(d.messageTypes, d.id, idx.messageTypes);
     for (const v of d.consoleMarkers ?? []) idx.consoleMarkers.push([v, d.id]);
     for (const v of d.keyframes ?? []) idx.keyframes.set(v, d.id);

@@ -91,8 +91,13 @@ export class Scorer {
     const pool = this.activeReasons(t);
     const byRule = new Map<string, { sum: number; count: number; reason: Reason; drivers: Record<string, number> }>();
     let decisive = false;
+    // Drivers named by decisive evidence: their own markers, not mechanics they share with a library.
+    const marked = new Set<string>();
     for (const r of pool) {
-      if (r.decisive) decisive = true;
+      if (r.decisive) {
+        decisive = true;
+        for (const d of Object.keys(r.drivers ?? {})) marked.add(d);
+      }
       const def = (RULES as Record<string, RuleDef>)[r.id];
       const maxCount = def?.maxCount ?? 3;
       const agg = byRule.get(r.id) ?? { sum: 0, count: 0, reason: r, drivers: {} };
@@ -125,7 +130,7 @@ export class Scorer {
     else if (windowCount >= 2 && score <= HUMAN_THRESHOLD) verdict = "human";
     if (verdict !== "unknown") this.stable = verdict;
 
-    const candidates = this.rankDrivers(driverScores, logistic(score));
+    const candidates = this.rankDrivers(driverScores, logistic(score), marked);
     let driver: DriverMatch | null = null;
     if (verdict === "agent" && candidates[0]) {
       const top = candidates[0];
@@ -150,7 +155,19 @@ export class Scorer {
     };
   }
 
-  private rankDrivers(scores: Record<string, number>, agentProbability: number): DriverMatch[] {
+  private rankDrivers(raw: Record<string, number>, agentProbability: number, marked: ReadonlySet<string> = new Set()): DriverMatch[] {
+    // A product built on a library shows the library's markers too (Puppeteer's globals under Chrome DevTools MCP).
+    // Once a decisive marker of the product's own is seen, the library's evidence is evidence for the product.
+    const scores = { ...raw };
+    const folded = new Set<string>();
+    for (const [id, s] of Object.entries(raw)) {
+      const base = this.registry.byId.get(id)?.builtOn;
+      const baseScore = base ? (raw[base] ?? 0) : 0;
+      if (!base || s <= 0 || baseScore <= 0 || !marked.has(id)) continue;
+      scores[id] = s + baseScore;
+      folded.add(base);
+    }
+    for (const base of folded) delete scores[base];
     const entries = Object.entries(scores)
       .filter(([, s]) => s > 0)
       .sort((a, b) => b[1] - a[1]);

@@ -9,6 +9,7 @@ import { ConsoleWatcher } from "./probes/console";
 import { MessageWatcher } from "./probes/messages";
 import { probeCss } from "./probes/presence";
 import { probeAutomation, type ProbeResult } from "./probes/automation";
+import { StackWatcher } from "./probes/stack";
 import { DualFocusWatcher, probeDebugger, probeScreen, probeSoftwareGl, ViewportShiftWatcher } from "./probes/environment";
 import { WebMcpWatcher } from "./probes/webmcp";
 import { buildIndex, DRIVERS, type DriverSignature, type RegistryIndex } from "./registry";
@@ -60,6 +61,7 @@ export class Sensor {
   private viewport: ViewportShiftWatcher | null = null;
   private messages: MessageWatcher | null = null;
   private consoleWatch: ConsoleWatcher | null = null;
+  private stackWatch: StackWatcher | null = null;
   private dualFocus: DualFocusWatcher | null = null;
   private transport: Transport;
   private panel: DebugPanel | null = null;
@@ -268,6 +270,11 @@ export class Sensor {
       this.consoleWatch.start();
     }
 
+    if (this.config.probes?.stack !== false) {
+      this.stackWatch = new StackWatcher(this.registry, () => this.t(), (r) => this.persist(r));
+      this.stackWatch.start();
+    }
+
     this.dualFocus = new DualFocusWatcher(this.session.pageId, () => this.t(), (r) => this.persist(r, 300_000));
     this.dualFocus.start();
 
@@ -304,6 +311,8 @@ export class Sensor {
     this.messages = null;
     this.consoleWatch?.stop();
     this.consoleWatch = null;
+    this.stackWatch?.stop();
+    this.stackWatch = null;
     this.dualFocus?.stop();
     this.dualFocus = null;
     for (const id of this.probeTimers) clearTimeout(id);

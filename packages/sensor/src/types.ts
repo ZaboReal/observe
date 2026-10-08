@@ -108,6 +108,8 @@ export interface SensorConfig {
     debugger?: boolean;
     /** Wrap console.log/info/debug to catch automation markers. On by default; log call sites then point at the sensor. */
     console?: boolean;
+    /** Wrap MutationObserver.prototype.observe to read the caller's stack for framework markers (Chrome DevTools MCP). On by default. */
+    stack?: boolean;
   };
   /** CSS selector for elements whose untrusted events come from the app's own code and should be ignored. */
   ignoreSyntheticFrom?: string;

@@ -21,6 +21,7 @@ export const RULES = {
   "env.agent-ua": { label: "User agent declares an automated agent", weight: 6, robustness: "decisive", decisive: true },
   "env.ua-mismatch": { label: "User agent and client hints disagree", weight: 1.5, robustness: "high" },
   "env.stack-marker": { label: "Automation framework in the call stack", weight: 6, robustness: "decisive", decisive: true },
+  "env.driver-wrapper": { label: "Built-in API replaced by automation framework code", weight: 6, robustness: "decisive", decisive: true },
   "env.software-gl": { label: "Software WebGL renderer (no GPU)", weight: 0.6, robustness: "situational" },
   "env.agent-screen": { label: "Screen size typical of agent VMs", weight: 0.3, robustness: "low" },
   "env.viewport-shift": { label: "Viewport shrank as a debugger banner appeared", weight: 0.8, robustness: "situational" },
