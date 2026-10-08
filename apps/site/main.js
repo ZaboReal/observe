@@ -1,100 +1,118 @@
-// Homepage behaviour: the drifting dot "sand" behind the page, the menu, and fade-in on scroll.
+// Homepage behaviour: guilloche patterns (the fine line work printed on passports), the week grid,
+// the mobile menu, and fade-in on scroll.
 
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const SVG = "http://www.w3.org/2000/svg";
 
-// ───── Sand: two bands of fine dotted strands, blue low on the left and warm high on the right ─────
-(function sand() {
-  const canvas = document.getElementById("sand");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+// ───── Guilloche ─────
+// Hypotrochoids and epitrochoids traced with thousands of points, layered like a passport's security print.
+(function guilloche() {
+  const defs = document.getElementById("patterns");
+  if (!defs) return;
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 
-  // A seeded random so the pattern is the same on every load.
-  let seed = 7;
-  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-
-  // Each band follows a cubic curve (in fractions of the viewport) and spreads across `width` in parallel strands.
-  const BANDS = [
-    { color: [58, 92, 196], points: [[-0.12, 1.02], [0.18, 0.98], [0.32, 0.6], [0.66, 0.46]], width: 0.13, count: 12000, alpha: 0.78 },
-    { color: [214, 116, 82], points: [[0.46, 0.66], [0.6, 0.36], [0.86, 0.3], [1.12, 0.2]], width: 0.12, count: 10000, alpha: 0.62 },
-  ];
-  const STRANDS = 46;
-
-  const bez = (p, t, i) => {
-    const m = 1 - t;
-    return m * m * m * p[0][i] + 3 * m * m * t * p[1][i] + 3 * m * t * t * p[2][i] + t * t * t * p[3][i];
-  };
-  const dbez = (p, t, i) => {
-    const m = 1 - t;
-    return 3 * m * m * (p[1][i] - p[0][i]) + 6 * m * t * (p[2][i] - p[1][i]) + 3 * t * t * (p[3][i] - p[2][i]);
-  };
-
-  const particles = BANDS.map((b) =>
-    Array.from({ length: b.count }, () => {
-      const k = Math.floor(rand() * STRANDS);
-      return { u: rand(), k, v: (k / (STRANDS - 1) - 0.5) * 2 + (rand() - 0.5) * 0.03, a: 0.35 + rand() * 0.65, s: rand() < 0.12 ? 1.6 : 1.1 };
-    }),
-  );
-
-  let w = 0;
-  let h = 0;
-  function resize() {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    w = innerWidth;
-    h = innerHeight;
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-
-  function draw(t) {
-    ctx.clearRect(0, 0, w, h);
-    // Softer on narrow screens, where the bands sit behind more of the text.
-    const soften = w < 700 ? 0.6 : 1;
-    BANDS.forEach((b, bi) => {
-      const [r, g, bl] = b.color;
-      const width = b.width * h;
-      for (const p of particles[bi]) {
-        const x0 = bez(b.points, p.u, 0) * w;
-        const y0 = bez(b.points, p.u, 1) * h;
-        const dx = dbez(b.points, p.u, 0) * w;
-        const dy = dbez(b.points, p.u, 1) * h;
-        const len = Math.hypot(dx, dy) || 1;
-        const nx = -dy / len;
-        const ny = dx / len;
-        // Strands ripple slowly along the band.
-        const ripple = Math.sin(p.u * 11 + t * 0.00045 + p.k * 0.23) * width * 0.09;
-        const off = p.v * width + ripple;
-        const fade = Math.pow(Math.sin(Math.PI * p.u), 0.9) * (1 - p.v * p.v);
-        const alpha = b.alpha * fade * p.a * soften;
-        if (alpha < 0.02) continue;
-        ctx.fillStyle = `rgba(${r},${g},${bl},${alpha.toFixed(3)})`;
-        ctx.fillRect(x0 + nx * off, y0 + ny * off, p.s, p.s);
-      }
-    });
-  }
-
-  resize();
-  addEventListener("resize", () => {
-    resize();
-    if (reduceMotion) draw(0);
-  });
-  if (reduceMotion) return draw(0);
-
-  // About 30 frames a second is plenty for a slow drift and keeps the page light.
-  let last = 0;
-  (function frame(t) {
-    if (t - last > 33) {
-      draw(t);
-      last = t;
+  /** Points of a spirograph curve. `inner` traces a hypotrochoid, otherwise an epitrochoid. */
+  function trochoid(R, r, d, { inner = true, steps = 4000, scale = 1 } = {}) {
+    const turns = r / gcd(R, r);
+    const k = inner ? (R - r) / r : (R + r) / r;
+    const out = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = (i / steps) * Math.PI * 2 * turns;
+      const x = inner ? (R - r) * Math.cos(t) + d * Math.cos(k * t) : (R + r) * Math.cos(t) - d * Math.cos(k * t);
+      const y = inner ? (R - r) * Math.sin(t) - d * Math.sin(k * t) : (R + r) * Math.sin(t) - d * Math.sin(k * t);
+      out.push(`${(x * scale).toFixed(1)} ${(y * scale).toFixed(1)}`);
     }
-    requestAnimationFrame(frame);
-  })(0);
+    return `M${out.join("L")}`;
+  }
+
+  function group(id, layers) {
+    const g = document.createElementNS(SVG, "g");
+    g.id = id;
+    g.setAttribute("fill", "none");
+    g.setAttribute("stroke", "currentColor");
+    for (const [d, width, opacity] of layers) {
+      const p = document.createElementNS(SVG, "path");
+      p.setAttribute("d", d);
+      p.setAttribute("stroke-width", width);
+      p.setAttribute("stroke-opacity", opacity);
+      g.appendChild(p);
+    }
+    defs.appendChild(g);
+  }
+
+  group("rosette-a", [
+    [trochoid(150, 52, 96, { steps: 6000 }), 0.45, 0.8],
+    [trochoid(150, 52, 70, { steps: 6000 }), 0.4, 0.6],
+    [trochoid(200, 8, 14, { inner: false, steps: 3200 }), 0.5, 0.7],
+    [trochoid(60, 22, 30, { steps: 3000 }), 0.4, 0.7],
+  ]);
+  group("rosette-b", [
+    [trochoid(120, 44, 80, { steps: 4000 }), 0.6, 0.8],
+    [trochoid(170, 10, 16, { inner: false, steps: 2400 }), 0.6, 0.7],
+  ]);
+
+  // A banknote-style band of interwoven waves for the bottom of the hero.
+  const waves = document.createElementNS(SVG, "g");
+  waves.id = "waves";
+  waves.setAttribute("fill", "none");
+  waves.setAttribute("stroke", "currentColor");
+  for (let i = 0; i < 26; i++) {
+    const pts = [];
+    for (let x = 0; x <= 1600; x += 8) {
+      const y = 70 + 42 * Math.sin(x * 0.0058 + i * 0.32) * Math.cos(x * 0.0019 - i * 0.11) + (i - 13) * 1.6;
+      pts.push(`${x} ${y.toFixed(1)}`);
+    }
+    const p = document.createElementNS(SVG, "path");
+    p.setAttribute("d", `M${pts.join("L")}`);
+    p.setAttribute("stroke-width", "0.8");
+    p.setAttribute("vector-effect", "non-scaling-stroke");
+    p.setAttribute("stroke-opacity", (0.35 + 0.65 * Math.sin((i / 25) * Math.PI)).toFixed(2));
+    waves.appendChild(p);
+  }
+  defs.appendChild(waves);
 })();
 
-// ───── Menu ─────
+// ───── Week grid: one seat's hours, person against agent (illustrative) ─────
+(function week() {
+  const grid = document.getElementById("week");
+  if (!grid) return;
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  let n = 0;
+  days.forEach((day, d) => {
+    const weekday = d < 5;
+    // The person works 9 to 6 on weekdays with an hour for lunch: 40 hours.
+    const person = (h) => weekday && h >= 9 && h < 18 && h !== 12;
+    // The agent runs about 20 hours a day, every day: 140 hours.
+    const gaps = new Set([(3 + d) % 24, (4 + d) % 24, (14 + 2 * d) % 24, (15 + 2 * d) % 24]);
+    const agent = (h) => !gaps.has(h);
+
+    const row = document.createElement("div");
+    row.className = "day";
+    row.innerHTML = `<span>${day}</span>`;
+    const lanes = document.createElement("div");
+    lanes.className = "lanes";
+    for (const [kind, on] of [["person", person], ["agent", agent]]) {
+      const lane = document.createElement("div");
+      lane.className = `lane ${kind}`;
+      for (let h = 0; h < 24; h++) {
+        const cell = document.createElement("i");
+        if (on(h)) {
+          cell.className = "on";
+          cell.style.setProperty("--i", String(n++ % 168));
+        }
+        lane.appendChild(cell);
+      }
+      lanes.appendChild(lane);
+    }
+    row.appendChild(lanes);
+    grid.appendChild(row);
+  });
+})();
+
+// ───── Mobile menu ─────
 (function menu() {
-  const toggle = document.querySelector(".nav-toggle");
-  const panel = document.getElementById("menu");
+  const toggle = document.querySelector(".menu-toggle");
+  const panel = document.getElementById("mobile-menu");
   if (!toggle || !panel) return;
   const set = (open) => {
     panel.hidden = !open;
@@ -104,18 +122,12 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     e.stopPropagation();
     set(panel.hidden);
   });
-  panel.addEventListener("click", (e) => {
-    if (e.target.closest("a")) set(false);
-  });
-  document.addEventListener("click", (e) => {
-    if (!panel.hidden && !panel.contains(e.target)) set(false);
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") set(false);
-  });
+  panel.addEventListener("click", (e) => e.target.closest("a") && set(false));
+  document.addEventListener("click", (e) => !panel.hidden && !panel.contains(e.target) && set(false));
+  document.addEventListener("keydown", (e) => e.key === "Escape" && set(false));
 })();
 
-// ───── Fade in on scroll ─────
+// ───── Fade in on scroll (stamps thump down instead) ─────
 (function reveal() {
   const items = document.querySelectorAll(".reveal");
   if (reduceMotion || !("IntersectionObserver" in window)) {
@@ -130,7 +142,7 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
         io.unobserve(e.target);
       }
     },
-    { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
+    { threshold: 0.15, rootMargin: "0px 0px -40px 0px" },
   );
   items.forEach((el) => io.observe(el));
 })();
