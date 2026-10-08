@@ -20,6 +20,16 @@
         "dev"
       ],
       "port": 3100
+    },
+    {
+      "name": "example-shop",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@observe/example-shop",
+        "dev"
+      ],
+      "port": 3300
     }
   ]
 }

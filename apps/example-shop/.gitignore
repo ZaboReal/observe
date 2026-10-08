@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.next-*/
+next-env.d.ts
+*.tsbuildinfo
+# The workspace lockfile lives at the repo root.
+pnpm-lock.yaml
+# The root ignores .env*; keep the example.
+!.env.example
