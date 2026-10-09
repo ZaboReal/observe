@@ -14,7 +14,8 @@ const REACH: Record<PriceReach, string> = {
   never: "A person must approve this, so it is never sold",
 };
 
-const box = "h-9 w-full rounded-full border-0 bg-sheet pr-3 pl-6 text-right font-mono text-[13px] tabular shadow-ring outline-none placeholder:text-ink-3 focus:shadow-[0_0_0_2px_var(--color-ink)] disabled:bg-track disabled:opacity-60";
+const field = "h-9 w-full rounded-full border-0 bg-sheet font-mono text-[13px] shadow-ring outline-none placeholder:text-ink-3 focus:shadow-[0_0_0_2px_var(--color-ink)]";
+const box = `${field} pr-3 pl-6 text-right tabular`;
 
 /** Dollars as typed in a price box: 0.25, 0.002. */
 function dollars(micro: number | null): string {
@@ -74,7 +75,7 @@ export function PricingForm({ rows, editable, note }: { rows: PricingRow[]; edit
         <div className="grid grid-cols-[minmax(0,1fr)_112px] items-center gap-x-4 border-t border-line px-4 py-3 lg:grid-cols-[minmax(0,1fr)_180px_128px]">
           <label className="min-w-0">
             <span className="sr-only">Action id to price</span>
-            <input name="new_action" placeholder="Price another action: its id, e.g. export_invoices" autoComplete="off" className={`${box} pl-4 text-left`} />
+            <input name="new_action" placeholder="Price another action: its id, e.g. export_invoices" autoComplete="off" className={`${field} px-4 text-[12.5px]`} />
           </label>
           <span className="hidden lg:block" />
           <label className="relative">
