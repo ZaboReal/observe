@@ -85,7 +85,7 @@ export function PricingForm({
           <div className="text-[12px] leading-[1.45] text-ink-3">Once for each session a recognised or verified agent drives</div>
         </div>
         <div className={STATS}>
-          {billing.sessionCount ? `${billing.sessionCount.toLocaleString("en-US")} sessions this week` : "No billed sessions this week"}
+          {billing.sessionCount ? `${billing.sessionCount.toLocaleString("en-US")} ${billing.sessionCount === 1 ? "session" : "sessions"} this week` : "No billed sessions this week"}
           {billing.sessions > 0 && <span className="block font-medium text-green">{formatTotal(billing.sessions)} billed</span>}
         </div>
         <PriceBox name="rate:session" value={rates.session} label="Price per agent session" editable={editable} />

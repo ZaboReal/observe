@@ -139,7 +139,7 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 pb-3">
           <span className="text-[24px] leading-none font-semibold tracking-[-0.025em] tabular">{formatTotal(pricing.billing.total)}</span>
           <span className="text-[12.5px] text-ink-3">
-            {["billed to agents this week", pricing.billing.actionCount ? `${num(pricing.billing.actionCount)} actions` : null, pricing.billing.time ? formatMinutes(pricing.billing.minutes) : null, pricing.billing.sessionCount ? `${num(pricing.billing.sessionCount)} sessions` : null]
+            {["billed to agents this week", pricing.billing.actionCount ? `${num(pricing.billing.actionCount)} ${pricing.billing.actionCount === 1 ? "action" : "actions"}` : null, pricing.billing.time ? formatMinutes(pricing.billing.minutes) : null, pricing.billing.sessionCount ? `${num(pricing.billing.sessionCount)} ${pricing.billing.sessionCount === 1 ? "session" : "sessions"}` : null]
               .filter(Boolean)
               .join(" · ")}
           </span>
