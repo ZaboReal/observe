@@ -63,7 +63,7 @@ export default async function SessionPage({ params }: Props) {
             : s.tier === "unknown-automation"
               ? "Clearly automated; no known product matches"
               : "How it clicks and types";
-  const allowed = allowedScopes(s.tier);
+  const allowed = allowedScopes(s.tier, site.id, s.driverId);
   const allowedTo =
     s.verdict === "human" ? "Whatever their role allows" : s.verdict === "unknown" ? "Decided once it is clear who is driving" : allowed.length ? allowed.join(", ") : "Nothing without asking first";
   const personLine = `${person.label}${person.device ? ` ${person.device}` : ""}${account ? `, ${account}` : ""}`;

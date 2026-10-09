@@ -1,3 +1,4 @@
+import { ruleFor } from "@/lib/agent-rules";
 import { getDriver } from "@/lib/catalog";
 import { dbWritable, putBatch } from "@/lib/db";
 import { actionFor, ingest, parseBatch } from "@/lib/ingest";
@@ -51,7 +52,9 @@ export async function POST(req: Request) {
   const verdict: Verdict = session?.verdict ?? "unknown";
   const tier: Tier = session?.tier ?? "unknown";
   const action = actionFor(body.action, path);
-  const { outcome, policy, price } = decide(tier, action, priceFor(site.id, action.id));
+  // The site's own rule for this agent, or its kind of agent, when it set one on the Rules page.
+  const rule = session ? ruleFor(site.id, session, action.scope) : null;
+  const { outcome, policy, price } = decide(tier, action, priceFor(site.id, action.id), rule);
   const driver = verdict === "agent" && session?.driverId ? getDriver(session.driverId) : undefined;
 
   // Mark the action on the session, through the same stored-batch path as sensor data so every instance sees it.

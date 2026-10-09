@@ -70,6 +70,14 @@ export interface StoredPrice {
   currency: string;
 }
 
+/** A site's rule for one agent (or group of agents) and scope (src/lib/agent-rules.ts). */
+export interface StoredAgentRule {
+  site: string;
+  subject: string;
+  scope: string;
+  choice: string;
+}
+
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const res = await fetch(`${URL_BASE}/rest/v1/rpc/${fn}`, {
     method: "POST",
@@ -150,4 +158,13 @@ export function listRates(): Promise<StoredRate[]> {
 /** Set what agents pay per hour or per session on a site; null removes the rate. */
 export function setRate(siteId: string, unit: "hour" | "session", micro: number | null): Promise<void> {
   return rpc("observe_set_agent_rate_v2", { p_site: siteId, p_unit: unit, p_amount_micro: micro ?? 0 });
+}
+
+export function listAgentRules(): Promise<StoredAgentRule[]> {
+  return rpc("observe_agent_rules_v2", {});
+}
+
+/** Set what an agent (a driver id) or group of agents may do with a scope on a site; null removes the rule. */
+export function setAgentRule(siteId: string, subject: string, scope: string, choice: string | null): Promise<void> {
+  return rpc("observe_set_agent_rule_v2", { p_site: siteId, p_subject: subject, p_scope: scope, p_choice: choice });
 }

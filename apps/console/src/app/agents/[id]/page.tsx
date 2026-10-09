@@ -38,7 +38,7 @@ export default async function AgentPage({ params, searchParams }: Props) {
   const name = d.driver?.name ?? "Unknown automation";
   const s = d.stat;
   const tier = d.driver?.tier ?? "unknown-automation";
-  const rules = ruleSummary(tier);
+  const rules = ruleSummary(tier, site.id, d.driver?.id ?? null);
   const maxAccount = Math.max(...d.accounts.map((a) => a.agentHours), 0.01);
   const period = r.label.toLowerCase();
 

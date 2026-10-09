@@ -1,9 +1,10 @@
 import "server-only";
 
+import { GROUP, inheritedRule, isChoice, isScope, resolveRule, ruleFor, ruleSubjects, subjectTier, type Choice, type RuleChoice } from "./agent-rules";
 import { ACTIONS, SCOPES, UNNAMED_ID, getAccount, getDriver, getUser } from "./catalog";
 import { UNASSIGNED_ACCOUNT, accountText, personText, type Tone } from "./format";
 import { DAY, HOUR, MINUTE } from "./generate";
-import { decide } from "./policy";
+import { decide, isAgentTier, lockedScope } from "./policy";
 import { priceFor } from "./pricing";
 import { RANGES, accountStats, accounts, driverStats, scopeStats, series, toRow, totals, type Range } from "./queries";
 import { HISTORY, store } from "./store";
@@ -20,8 +21,9 @@ import type { ActionDef, Outcome, Scope, Session, Tier } from "./types";
 const SAMPLE = new Map<Scope, ActionDef>();
 for (const a of ACTIONS) if (!SAMPLE.has(a.scope)) SAMPLE.set(a.scope, a);
 
-export function decideScope(tier: Tier, scope: Scope) {
-  return decide(tier, SAMPLE.get(scope)!);
+/** What the rules do with a scope for this tier, under the site's rule when one applies (src/lib/agent-rules.ts). */
+export function decideScope(tier: Tier, scope: Scope, rule?: RuleChoice | null) {
+  return decide(tier, SAMPLE.get(scope)!, null, rule);
 }
 
 function emptyOutcomes(): Record<Outcome, number> {
@@ -33,7 +35,8 @@ function outcomeCounts(sessions: Session[]): Record<Outcome, number> {
   const out = emptyOutcomes();
   for (const s of sessions) {
     if (s.verdict !== "agent") continue;
-    for (const [scope, n] of Object.entries(s.scopes) as [Scope, number][]) out[decideScope(s.tier, scope).outcome] += n;
+    const site = store.siteOf(s);
+    for (const [scope, n] of Object.entries(s.scopes) as [Scope, number][]) out[decideScope(s.tier, scope, ruleFor(site, s, scope)).outcome] += n;
   }
   return out;
 }
@@ -68,6 +71,8 @@ export function latestAgentPages(sessions: Session[], now: number, limit = 8): F
     if (rows.length >= limit && s.lastAt < rows[rows.length - 1]!.ts) break;
     const user = getUser(s.userId);
     const driverName = getDriver(s.driverId)?.name ?? "Unknown automation";
+    // Reading a page is the "view" scope.
+    const outcome = decideScope(s.tier, "view", ruleFor(store.siteOf(s), s, "view")).outcome;
     store.events(s, now).forEach((e, j) => {
       if (e.driver !== "agent" || e.type !== "page") return;
       rows.push({
@@ -79,8 +84,7 @@ export function latestAgentPages(sessions: Session[], now: number, limit = 8): F
         person: personText(user?.email ?? s.userId),
         account: accountText(s.accountId, getAccount(s.accountId)?.name ?? s.accountId),
         action: `Opened ${e.route}`,
-        // Reading a page is the "view" scope.
-        outcome: decideScope(s.tier, "view").outcome,
+        outcome,
       });
     });
     rows.sort((a, b) => b.ts - a.ts);
@@ -115,6 +119,7 @@ export function latestActions(sessions: Session[], now: number, limit = 8): Feed
     if (rows.length >= limit && s.lastAt < rows[rows.length - 1]!.ts) break;
     const user = getUser(s.userId);
     const driverName = getDriver(s.driverId)?.name ?? "Unknown automation";
+    const site = store.siteOf(s);
     store.events(s, now).forEach((e, j) => {
       if (e.driver !== "agent" || !e.action) return;
       rows.push({
@@ -127,7 +132,7 @@ export function latestActions(sessions: Session[], now: number, limit = 8): Feed
         person: personText(user?.email ?? s.userId),
         account: accountText(s.accountId, getAccount(s.accountId)?.name ?? s.accountId),
         action: e.action.label,
-        outcome: decide(s.tier, e.action, priceFor(store.siteOf(s), e.action.id)).outcome,
+        outcome: decide(s.tier, e.action, priceFor(site, e.action.id), ruleFor(site, s, e.action.scope)).outcome,
       });
     });
     rows.sort((a, b) => b.ts - a.ts);
@@ -214,7 +219,7 @@ export function accountsView(siteId: string, range: Range, now = Date.now()) {
 
 // ───────────────────────── Rules ─────────────────────────
 
-export type Choice = "allow" | "ask" | "never";
+export type { Choice } from "./agent-rules";
 
 const CHOICE: Record<Outcome, Choice> = {
   admit: "allow",
@@ -233,42 +238,89 @@ const NOTE: Partial<Record<Outcome, string>> = {
   ask: "The person confirms each one",
 };
 
-const AGENT_TIERS: Tier[] = ["verified", "recognised", "unknown-automation"];
-
-export interface RuleRow {
-  scope: Scope;
-  label: string;
-  examples: string[];
+/** What the rules do with one scope, in the Rules page's words. */
+export interface RuleDecision {
   outcome: Outcome;
   policy: string;
   choice: Choice;
   note: string | null;
-  /** The same "never" for every agent: a limit the site sets, which nobody below it can loosen. */
-  locked: boolean;
+  /** The site's rule behind it, if any (src/lib/agent-rules.ts); null for the default. */
+  rule: RuleChoice | null;
 }
 
-export function ruleRows(tier: Tier): RuleRow[] {
+function ruleDecision(tier: Tier, scope: Scope, rule: RuleChoice | null): RuleDecision {
+  const d = decideScope(tier, scope, rule);
+  return { outcome: d.outcome, policy: d.policy, choice: CHOICE[d.outcome], note: NOTE[d.outcome] ?? null, rule };
+}
+
+export interface RuleRow extends RuleDecision {
+  scope: Scope;
+  label: string;
+  examples: string[];
+  /** The same "never" for every agent: a limit the site sets, which nobody below it can loosen. */
+  locked: boolean;
+  /** The rule in effect was set for this subject itself, so resetting it removes it. */
+  own: boolean;
+  /** What applies without this subject's own rule: its group's rule, or the default. */
+  base: RuleDecision;
+  /** What each choice would do as this subject's own rule; null where no rule can apply (people, locked rows, no subject). */
+  options: Record<Choice, RuleDecision> | null;
+}
+
+/**
+ * Scope by scope, what the rules let this tier do. Given a site, they include the rules it set (src/lib/agent-rules.ts)
+ * for `subject`, a driver id or a group's id: its own rule, else its group's, else the default.
+ */
+export function ruleRows(tier: Tier, siteId?: string, subject?: string | null): RuleRow[] {
   return SCOPES.map((sc) => {
-    const d = decideScope(tier, sc.id);
+    const rule = siteId ? resolveRule(siteId, tier, subject, sc.id) : null;
+    const own = !!rule && rule.subject === subject;
+    const base = ruleDecision(tier, sc.id, siteId ? inheritedRule(siteId, tier, subject, sc.id) : null);
+    const locked = tier !== "human" && lockedScope(sc.id);
     return {
       scope: sc.id,
       label: sc.label,
       examples: ACTIONS.filter((a) => a.scope === sc.id)
         .slice(0, 3)
         .map((a) => a.label),
-      outcome: d.outcome,
-      policy: d.policy,
-      choice: CHOICE[d.outcome],
-      note: NOTE[d.outcome] ?? null,
-      locked: tier !== "human" && AGENT_TIERS.every((t) => decideScope(t, sc.id).outcome === "refuse"),
+      ...(own ? ruleDecision(tier, sc.id, rule) : base),
+      locked,
+      own,
+      base,
+      options: subject && isAgentTier(tier) && !locked ? ruleOptions(tier, sc.id, subject) : null,
     };
   });
 }
 
-/** One word for how much a tier may do, for the list of agents. */
-export function ruleSummary(tier: Tier): { label: string; tone: Tone } {
+function ruleOptions(tier: Tier, scope: Scope, subject: string): Record<Choice, RuleDecision> {
+  const as = (choice: Choice) => ruleDecision(tier, scope, { choice, subject });
+  return { allow: as("allow"), ask: as("ask"), never: as("never") };
+}
+
+/**
+ * Check a change to a rule from the Rules page and work out what to store. Choosing what would apply anyway (the
+ * group's rule, or the default) removes the subject's own rule, so the default's finer points (slowed, or the person
+ * granting access) stay. Limits the site sets for every agent are refused.
+ */
+export function ruleChange(
+  siteId: string,
+  subject: string,
+  scope: string,
+  choice: string | null,
+): { error: string } | { error: null; scope: Scope; choice: Choice | null } {
+  const tier = subjectTier(subject);
+  if (!tier) return { error: "Rules are set for agents and kinds of agents only. People keep their own roles." };
+  if (!isScope(scope)) return { error: `“${scope}” is not a kind of action.` };
+  if (choice !== null && !isChoice(choice)) return { error: "Choose Allow, Ask or Never." };
+  if (lockedScope(scope)) return { error: "This is a limit for every agent, so no rule can change it." };
+  const row = ruleRows(tier, siteId, subject).find((r) => r.scope === scope)!;
+  return { error: null, scope, choice: choice === row.base.choice ? null : choice };
+}
+
+/** One word for how much a tier may do, for the list of agents. With a site and subject, it includes the site's rules (see `ruleRows`). */
+export function ruleSummary(tier: Tier, siteId?: string, subject?: string | null): { label: string; tone: Tone } {
   if (tier === "human") return { label: "Roles", tone: "mute" };
-  const rows = ruleRows(tier);
+  const rows = ruleRows(tier, siteId, subject);
   const allowed = rows.filter((r) => r.outcome === "admit");
   if (allowed.length >= 3) return { label: "On", tone: "ok" };
   if (allowed.some((r) => r.scope === "view")) return { label: "View", tone: "ask" };
@@ -284,15 +336,22 @@ export interface RuleEntry {
   sessions: number;
 }
 
-/** Who the rules apply to: agents seen this week by name, any tier not seen yet, unknown automation, and people. */
+/**
+ * Who the rules apply to: agents seen this week by name and any other agent the site set a rule for, then the groups
+ * every verified or recognised agent falls back on, unknown automation, and people.
+ */
 export function ruleEntries(siteId: string, now = Date.now()): RuleEntry[] {
   const stats = driverStats(store.sessions(now - 7 * DAY, now, now, siteId));
   const entries: RuleEntry[] = stats
     .filter((d) => d.driver)
     .slice(0, 8)
     .map((d) => ({ id: d.driver!.id, name: d.driver!.name, provider: d.driver!.provider, tier: d.driver!.tier, sessions: d.sessions }));
-  if (!entries.some((e) => e.tier === "verified")) entries.push({ id: "any-verified", name: "Verified agents", provider: null, tier: "verified", sessions: 0 });
-  if (!entries.some((e) => e.tier === "recognised")) entries.push({ id: "any-recognised", name: "Recognised agents", provider: null, tier: "recognised", sessions: 0 });
+  for (const subject of ruleSubjects(siteId)) {
+    const driver = getDriver(subject);
+    if (driver && !entries.some((e) => e.id === subject)) entries.push({ id: driver.id, name: driver.name, provider: driver.provider, tier: driver.tier, sessions: 0 });
+  }
+  entries.push({ id: GROUP.verified, name: "Verified agents", provider: null, tier: "verified", sessions: 0 });
+  entries.push({ id: GROUP.recognised, name: "Recognised agents", provider: null, tier: "recognised", sessions: 0 });
   entries.push({
     id: UNNAMED_ID,
     name: "Unknown automation",
@@ -304,9 +363,9 @@ export function ruleEntries(siteId: string, now = Date.now()): RuleEntry[] {
   return entries;
 }
 
-/** Scopes this tier is allowed outright, for a session's "Allowed to" line. */
-export function allowedScopes(tier: Tier): string[] {
-  return ruleRows(tier)
+/** Scopes a session's agent is allowed outright on this site, for its "Allowed to" line. */
+export function allowedScopes(tier: Tier, siteId?: string, driverId?: string | null): string[] {
+  return ruleRows(tier, siteId, driverId)
     .filter((r) => r.outcome === "admit")
     .map((r) => r.label);
 }

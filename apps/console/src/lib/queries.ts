@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ruleFor } from "./agent-rules";
 import { ACCOUNTS, SCOPES, UNNAMED_ID, allDrivers, getAccount, getDriver, getUser } from "./catalog";
 import { DAY, HOUR, MINUTE, reasonsFor } from "./generate";
 import { exactMatch } from "./passport";
@@ -112,7 +113,7 @@ export function toRow(s: Session, now: number): SessionRow {
   if (s.verdict === "agent") {
     for (const e of events) {
       if (e.driver !== "agent" || !e.action) continue;
-      const o = decide(s.tier, e.action, priceFor(site, e.action.id)).outcome;
+      const o = decide(s.tier, e.action, priceFor(site, e.action.id), ruleFor(site, s, e.action.scope)).outcome;
       if (outcome === null || OUTCOME_RANK.indexOf(o) < OUTCOME_RANK.indexOf(outcome)) outcome = o;
     }
   }
@@ -455,9 +456,10 @@ export function sessionDetail(siteId: string, id: string, now = Date.now()) {
     }
   }
 
+  const site = store.siteOf(session);
   const decisions = events
     .filter((e): e is SessionEvent & { action: ActionDef } => e.driver === "agent" && e.type === "action" && !!e.action)
-    .map((e) => ({ at: session.startedAt + e.t, action: e.action, ...decide(session.tier, e.action, priceFor(store.siteOf(session), e.action.id)) }));
+    .map((e) => ({ at: session.startedAt + e.t, action: e.action, ...decide(session.tier, e.action, priceFor(site, e.action.id), ruleFor(site, session, e.action.scope)) }));
 
   return {
     session,
@@ -506,7 +508,7 @@ export function entryLog(opts: { siteId: string; range: Range; sensitiveOnly?: b
     store.events(s, now).forEach((e, j) => {
       if (e.driver !== "agent" || !e.action) return;
       if (opts.sensitiveOnly && e.action.scope === "view") return;
-      const d = decide(s.tier, e.action, priceFor(siteId, e.action.id));
+      const d = decide(s.tier, e.action, priceFor(siteId, e.action.id), ruleFor(siteId, s, e.action.scope));
       counts.total++;
       counts[d.outcome]++;
       billed += d.price ?? 0;

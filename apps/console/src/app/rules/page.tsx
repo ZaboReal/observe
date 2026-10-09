@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Lock } from "lucide-react";
 
 import { Page, PageHeader, Panel, Pill, buttonClass } from "@/components/ui";
 import { TIER_LABEL, num } from "@/lib/format";
@@ -9,10 +8,11 @@ import { dbWritable } from "@/lib/db";
 import { formatMinutes, formatPrice, formatTotal } from "@/lib/money";
 import { pricingRows } from "@/lib/pricing-view";
 import { syncStore } from "@/lib/sync";
-import type { Tier } from "@/lib/types";
-import { type Choice, ruleEntries, ruleRows, ruleSummary } from "@/lib/views";
+import type { Scope, Tier } from "@/lib/types";
+import { type RuleDecision, ruleEntries, ruleRows, ruleSummary } from "@/lib/views";
 
 import { PricingForm } from "./pricing-form";
+import { RulesGrid, type RuleRowView, type RuleView } from "./rules-grid";
 
 export const metadata: Metadata = { title: "Rules" };
 export const dynamic = "force-dynamic";
@@ -25,11 +25,8 @@ const ABOUT: Record<Tier, string> = {
   human: "People driving their own session. Your own roles and permissions apply.",
 };
 
-const CHOICES: { id: Choice; label: string; on: string }[] = [
-  { id: "allow", label: "Allow", on: "text-green" },
-  { id: "ask", label: "Ask", on: "text-amber" },
-  { id: "never", label: "Never", on: "text-red" },
-];
+/** The group a named agent falls back on, for the line under its name. */
+const GROUP_NAME: Partial<Record<Tier, string>> = { verified: "Verified agents", recognised: "Recognised agents" };
 
 export default async function RulesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await syncStore();
@@ -37,15 +34,34 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
   const want = (await searchParams).agent;
   const entries = ruleEntries(site.id);
   const selected = entries.find((e) => e.id === want) ?? entries[0]!;
-  const rows = ruleRows(selected.tier);
+  const rows = ruleRows(selected.tier, site.id, selected.id);
   const isPeople = selected.tier === "human";
   const pricing = pricingRows(site.id);
   const editable = site.stored && dbWritable;
-  // Priced actions this agent could pay for instead, by scope (agent pricing, below).
-  const payable = (scope: string) =>
-    selected.tier === "verified" || selected.tier === "recognised"
-      ? pricing.rows.filter((p) => p.scope === scope && p.price && (p.reach === "agents" || (p.reach === "verified" && selected.tier === "verified")))
-      : [];
+  // The demo and sites without a database keep the rules they have; people keep their own roles.
+  const rulesEditable = editable && !site.demo && !isPeople;
+  // A named agent follows its group (Recognised agents, Verified agents) wherever it has no rule of its own.
+  const group = selected.id.startsWith("any-") ? undefined : GROUP_NAME[selected.tier];
+  // Priced actions this agent pays for instead (agent pricing, below): a price applies where the rule lets a
+  // recognised or verified agent go ahead or ask for access (src/lib/policy.ts).
+  const pays = (scope: Scope, d: RuleDecision): string | null => {
+    if (selected.tier !== "verified" && selected.tier !== "recognised") return null;
+    if (d.outcome !== "admit" && d.outcome !== "request_access") return null;
+    const priced = pricing.rows.filter((p) => p.scope === scope && p.price);
+    if (!priced.length) return null;
+    return `${d.choice === "allow" ? "Pays" : "Or pays"}: ${priced.map((p) => `${p.label} ${formatPrice(p.price!)}`).join(" · ")}`;
+  };
+  const view = (scope: Scope, d: RuleDecision): RuleView => ({ choice: d.choice, policy: d.policy, note: d.note, pays: pays(scope, d) });
+  const grid: RuleRowView[] = rows.map((r) => ({
+    scope: r.scope,
+    label: r.label,
+    examples: r.examples.join(", "),
+    locked: r.locked,
+    own: r.own && r.rule ? r.rule.choice : null,
+    base: view(r.scope, r.base),
+    options: rulesEditable && r.options ? { allow: view(r.scope, r.options.allow), ask: view(r.scope, r.options.ask), never: view(r.scope, r.options.never) } : null,
+  }));
+  const readOnlyNote = isPeople ? null : site.demo ? "The demo's rules are fixed. Add your own site to set rules for it." : rulesEditable ? null : "Rules are set on the deployed console.";
 
   return (
     <Page>
@@ -64,14 +80,14 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         }
       />
 
-      <div className="grid overflow-hidden rounded-[20px] bg-sheet shadow-sheet md:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 overflow-hidden rounded-[20px] bg-sheet shadow-sheet md:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="border-b border-line bg-side p-3 md:border-r md:border-b-0">
           <div className="eyebrow px-2 pt-1 pb-2">Agents · {site.name}</div>
           {/* Phones: a row of agents to swipe through; wider screens: the list down the side. */}
           <ul className="no-scrollbar -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-1 md:mx-0 md:block md:space-y-1 md:overflow-visible md:px-0 md:pb-0">
             {entries.map((e) => {
               const on = e.id === selected.id;
-              const summary = ruleSummary(e.tier);
+              const summary = ruleSummary(e.tier, site.id, e.id);
               return (
                 <li key={e.id} className="shrink-0 md:shrink">
                   <Link
@@ -105,47 +121,12 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
             <h2 className="text-[17px] font-medium tracking-[-0.01em]">{selected.name}</h2>
             <p className="mt-0.5 text-[13px] text-ink-2">
               {isPeople ? `What people may do on ${site.name}` : `What ${selected.id.startsWith("any-") ? "they" : "it"} may do on ${site.name}`}. {ABOUT[selected.tier]}
+              {rulesEditable && group ? ` Rows you haven't changed follow ${group}.` : null}
             </p>
+            {readOnlyNote && <p className="mt-1 text-[12px] text-ink-3">{readOnlyNote}</p>}
           </div>
 
-          <ul>
-            {rows.map((r) => (
-              <li key={r.scope} className="flex flex-col gap-2 border-b border-line py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                <div className="min-w-0">
-                  <div className="text-[14px]">{r.label}</div>
-                  <div className="truncate text-[12px] text-ink-3">
-                    {r.note ? <span className={r.choice === "ask" ? "text-amber" : "text-ink-2"}>{r.note}. </span> : null}
-                    {r.examples.join(", ")}
-                  </div>
-                  {payable(r.scope).length > 0 && (
-                    <div className="mt-0.5 truncate text-[12px] text-green">
-                      {r.choice === "allow" ? "Pays" : "Or pays"}: {payable(r.scope)
-                        .map((p) => `${p.label} ${formatPrice(p.price!)}`)
-                        .join(" · ")}
-                    </div>
-                  )}
-                </div>
-                <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-                  <span className={`inline-flex rounded-full bg-track p-[3px] text-[12px] text-ink-3 ${r.locked ? "opacity-75" : ""}`} aria-hidden="true">
-                    {CHOICES.map((c) => (
-                      <span key={c.id} className={`rounded-full px-2.5 py-[3px] ${c.id === r.choice ? `bg-sheet font-medium shadow-pill ${c.on}` : ""}`}>
-                        {c.label}
-                      </span>
-                    ))}
-                  </span>
-                  <span className="sr-only">{CHOICES.find((c) => c.id === r.choice)!.label}</span>
-                  <span className="flex items-center gap-1 font-mono text-[10.5px] text-ink-3" title={`Policy ${r.policy}`}>
-                    {r.locked && (
-                      <>
-                        <Lock size={10} aria-hidden="true" /> Set by {site.name} ·{" "}
-                      </>
-                    )}
-                    {r.policy}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <RulesGrid key={selected.id} rows={grid} subject={selected.id} subjectName={selected.name} siteName={site.name} />
         </div>
       </div>
 
@@ -186,8 +167,9 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
         ))}
       </div>
       <p className="mt-3 max-w-3xl text-[12.5px] leading-[1.55] text-ink-3">
-        These are the default rules, shown read-only. In observe mode every agent action is checked against them and the outcome is recorded, so you can see what would have been allowed, asked or
-        blocked before switching anything on.
+        Every agent starts from the default rules. A rule you set for one agent comes before the rule for its group, and Reset removes it, so the group&apos;s rule or the default applies again.
+        Every check uses the rules as they are now: the decisions in Activity, the sessions list and your server&apos;s calls to /api/v1/decide. In observe mode nothing is blocked yet, so you can
+        see what would have been allowed, asked or blocked before switching anything on.
       </p>
     </Page>
   );

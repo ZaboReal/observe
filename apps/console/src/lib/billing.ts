@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ruleFor } from "./agent-rules";
 import { decide } from "./policy";
 import { priceFor, rateFor } from "./pricing";
 import { store } from "./store";
@@ -50,7 +51,7 @@ export function sessionBill(siteId: string, s: Session, now: number): SessionBil
   let actionCount = 0;
   for (const e of store.events(s, now)) {
     if (e.driver !== "agent" || !e.action) continue;
-    const d = decide(s.tier, e.action, priceFor(siteId, e.action.id));
+    const d = decide(s.tier, e.action, priceFor(siteId, e.action.id), ruleFor(siteId, s, e.action.scope));
     if (d.price) {
       actions += d.price;
       actionCount++;

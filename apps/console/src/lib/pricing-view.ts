@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ruleFor } from "./agent-rules";
 import { agentBilling, type AgentBilling } from "./billing";
 import { ACTIONS } from "./catalog";
 import { DAY } from "./generate";
@@ -55,7 +56,7 @@ export function pricingRows(siteId: string, now = Date.now()): PricingView {
       actions.set(e.action.id, e.action);
       if (s.verdict !== "agent" || e.driver !== "agent") continue;
       agentActions.set(e.action.id, (agentActions.get(e.action.id) ?? 0) + 1);
-      const d = decide(s.tier, e.action, priceFor(siteId, e.action.id));
+      const d = decide(s.tier, e.action, priceFor(siteId, e.action.id), ruleFor(siteId, s, e.action.scope));
       if (d.price) {
         billed.set(e.action.id, (billed.get(e.action.id) ?? 0) + d.price);
       }
