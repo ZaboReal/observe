@@ -100,8 +100,8 @@ export default async function SessionPage({ params }: Props) {
         </div>
       </header>
 
-      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        <div className="grid min-w-0 gap-3">
+      <div className="grid items-start gap-3 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
           {/* Who is driving, at a glance (the site's session card). */}
           <section className="rounded-2xl bg-sheet px-[18px] pt-4 pb-[18px] shadow-sheet">
             <div className="flex items-center justify-between">
@@ -256,7 +256,7 @@ export default async function SessionPage({ params }: Props) {
           </Panel>
         </div>
 
-        <div className="grid min-w-0 gap-3">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
           <Panel title="Who drove, and when" description={`${num(events.filter((e) => e.type !== "page").length)} actions across ${num(events.filter((e) => e.type === "page").length)} page views`}>
             <div className="pt-2">
               {events.length > 1 ? (

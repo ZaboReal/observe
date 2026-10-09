@@ -65,7 +65,7 @@ export default async function SetupPage() {
       />
 
       <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="grid min-w-0 gap-3">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
           <Step n={1} title="Install with your coding agent">
             <p>
               Paste this into Claude Code, Cursor or any coding agent working in the site&apos;s repo. It follows{" "}
@@ -104,7 +104,7 @@ export default async function SetupPage() {
           </Step>
         </div>
 
-        <div className="grid min-w-0 gap-3">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
           <Panel title="Sensor">
             {last ? (
               <>
