@@ -5,10 +5,12 @@ import { ArrowLeft } from "lucide-react";
 
 import { ReasonBars } from "@/components/charts";
 import { LiveToggle } from "@/components/live";
+import { Recheck } from "@/components/recheck";
 import { SessionTrack } from "@/components/session-track";
 import { Time } from "@/components/time";
 import { Avatar, Empty, LiveDot, Method, Mono, OutcomePill, Page, Panel, RiskTag, ShareBar, Who } from "@/components/ui";
 import { KIND_LABEL, TIER_LABEL, accountText, ago, duration, num, personOf, personText } from "@/lib/format";
+import { agentShare } from "@/lib/jev-questions";
 import { sessionDetail } from "@/lib/queries";
 import { currentSite } from "@/lib/current-site";
 import { syncStore } from "@/lib/sync";
@@ -18,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
-const DECIDED_BY = { signature: "Signed requests", "exact-match": "A marker on the page", jev: "Jev, from how it was driven", rules: "The sensor's own rules" } as const;
+const DECIDED_BY = { signature: "Signed requests", "exact-match": "A marker on the page", jev: "Our model, from how it was driven", rules: "The sensor's own rules" } as const;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   await syncStore();
@@ -202,8 +204,8 @@ export default async function SessionPage({ params }: Props) {
                   {decision.jev ? (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
-                        <dt className="text-ink-3">Jev</dt>
-                        <dd className="tabular">{Math.round(decision.jev.agentProbability * 100)}% an agent</dd>
+                        <dt className="text-ink-3">Our model</dt>
+                        <dd className="tabular">{Math.round(agentShare(decision.jev) * 100)}% an agent</dd>
                       </div>
                       <ul className="mt-2 grid gap-1.5">
                         {decision.jev.candidates.slice(0, 3).map((c) => (
@@ -214,12 +216,15 @@ export default async function SessionPage({ params }: Props) {
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-2 font-mono text-[11px] text-ink-3">
-                        {decision.jev.model} · {decision.jev.latencyMs} ms · read {decision.jev.actionsSeen} actions
-                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <p className="font-mono text-[11px] text-ink-3">
+                          {decision.jev.latencyMs} ms · read {decision.jev.actionsSeen} actions
+                        </p>
+                        {s.source === "sensor" && <Recheck sessionId={s.id} />}
+                      </div>
                     </>
                   ) : (
-                    <p className="text-ink-3">{decision.jevError ? `Jev unavailable: ${decision.jevError}` : "Waiting for Jev"}</p>
+                    <p className="text-ink-3">{decision.jevError ? "Our model is unavailable right now; the sensor's own rules decide meanwhile." : "Waiting for our model"}</p>
                   )}
                 </div>
               )}

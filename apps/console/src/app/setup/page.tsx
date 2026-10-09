@@ -165,24 +165,19 @@ export default async function SetupPage() {
             </dl>
           </Panel>
 
-          <Panel title="Who-is-driving model" description="Jev decides who drives each sensor session">
+          <Panel title="Who-is-driving model" description="Decides who drives each session from how the page is driven">
             <div className="flex items-center gap-2.5 text-[14px] font-medium">
               <LiveDot live={Boolean(jev.apiKey) && !(lastError && lastError.at > (lastAnswer ?? 0))} />
               {jev.apiKey ? (lastAnswer ? "Answering" : "Connected, waiting for a session") : "Not configured"}
             </div>
             <p className="mt-1 text-[13px] leading-[1.55] text-ink-2">
-              {jev.apiKey ? (
-                <>
-                  <Mono className="text-[12px]">{jev.model}</Mono>
-                  {lastAnswer ? ` · last answer ${ago(lastAnswer, now)}` : ""}
-                </>
-              ) : (
-                <>
-                  Add <Mono className="text-[12px]">TYPESAFE_API_KEY</Mono> to the console&apos;s environment. Until then the sensor&apos;s own rules decide.
-                </>
-              )}
+              {jev.apiKey
+                ? lastAnswer
+                  ? `Last answer ${ago(lastAnswer, now)}`
+                  : "Answers as soon as a session has something to judge."
+                : "Not set up on this console yet. Until it is, the sensor's own rules decide."}
             </p>
-            {lastError && lastError.at > (lastAnswer ?? 0) && <p className="mt-2 text-[12.5px] text-red">Last error: {lastError.message}</p>}
+            {lastError && lastError.at > (lastAnswer ?? 0) && <p className="mt-2 text-[12.5px] text-red">Unavailable right now; the sensor&apos;s own rules decide meanwhile.</p>}
           </Panel>
 
           <Panel title="API" flush>

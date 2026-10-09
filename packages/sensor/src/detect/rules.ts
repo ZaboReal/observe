@@ -23,7 +23,8 @@ export const RULES = {
   "env.stack-marker": { label: "Automation framework in the call stack", weight: 6, robustness: "decisive", decisive: true },
   "env.driver-wrapper": { label: "Built-in API replaced by automation framework code", weight: 6, robustness: "decisive", decisive: true },
   "env.software-gl": { label: "Software WebGL renderer (no GPU)", weight: 0.6, robustness: "situational" },
-  "env.agent-screen": { label: "Screen size typical of agent VMs", weight: 0.3, robustness: "low" },
+  // Agent VMs use ordinary laptop and monitor sizes (1440x900, 1920x1080), so this only helps name a driver.
+  "env.agent-screen": { label: "Screen size some agent VMs use", weight: 0, robustness: "low" },
   "env.viewport-shift": { label: "Viewport shrank as a debugger banner appeared", weight: 0.8, robustness: "situational" },
   "env.debugger": { label: "DevTools-protocol client with Runtime enabled", weight: 1, robustness: "situational" },
   "env.cdp-binding": { label: "DevTools-protocol binding on window", weight: 4, robustness: "high" },

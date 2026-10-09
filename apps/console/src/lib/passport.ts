@@ -56,7 +56,7 @@ export function decide(rec: Pick<SensorRecord, "observations" | "rules" | "jev">
     const driverId = preferProduct(named, rec.observations);
     return { verdict: "agent", tier: driverId ? "recognised" : "unknown-automation", driverId, confidence: 0.99, decidedBy: "exact-match" };
   }
-  if (rec.jev) return { ...toVerdict(rec.jev), decidedBy: "jev" };
+  if (rec.jev) return { ...toVerdict(rec.jev, rec.jev.actionsSeen), decidedBy: "jev" };
   if (rules) {
     const confidence = rules.verdict === "agent" ? rules.agentProbability : rules.verdict === "human" ? 1 - rules.agentProbability : 0.5;
     return { verdict: rules.verdict, tier: rules.tier, driverId: rules.verdict === "agent" ? rules.driverId : null, confidence, decidedBy: "rules" };

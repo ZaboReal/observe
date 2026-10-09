@@ -89,6 +89,8 @@ export class Capture {
     on(w, "blur", () => this.pageChanged());
     on(w, "hashchange", () => (this.ctx.lastNavigationT = this.ctx.t()));
     on(w, "popstate", () => (this.ctx.lastNavigationT = this.ctx.t()));
+    // Back/forward cache restores the old scroll position without a popstate.
+    on(w, "pageshow", () => (this.ctx.lastNavigationT = this.ctx.t()));
 
     this.timer = setInterval(() => {
       this.typing.tick();

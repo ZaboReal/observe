@@ -26,6 +26,13 @@ describe("clicks", () => {
     expect(h["claude-in-chrome"] ?? 0).toBe(0);
   });
 
+  it("treats a trackpad tap after a real approach as a person, not a short press", () => {
+    const tap = humanClick({ pressMs: 4 });
+    expect(ids(analyzeAction(tap, [], DRIVERS))).not.toContain("click.short-press");
+    // The same 4 ms release after a jump straight to the target is still flagged.
+    expect(ids(analyzeAction(agentClick({ pressMs: 4 }), [], DRIVERS))).toContain("click.short-press");
+  });
+
   it("scores a person's click toward human", () => {
     const rs = analyzeAction(humanClick(), [], DRIVERS);
     expect(ids(rs)).toEqual(expect.arrayContaining(["pointer.human-path", "click.human-press", "click.off-centre"]));
@@ -144,6 +151,10 @@ describe("scroll and cadence", () => {
     const next = typing({ gapMs: 6 });
     expect(ids(analyzeAction(next, [first], DRIVERS))).toContain("cadence.superhuman");
     expect(ids(analyzeAction(typing({ gapMs: 240 }), [first], DRIVERS))).not.toContain("cadence.superhuman");
+  });
+
+  it("does not count an action right after momentum scrolling as superhuman", () => {
+    expect(ids(analyzeAction(humanClick({ gapMs: 12 }), [scroll()], DRIVERS))).not.toContain("cadence.superhuman");
   });
 
   it("recognises constant micro-motion between actions", () => {

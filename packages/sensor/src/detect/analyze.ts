@@ -53,7 +53,9 @@ function analyzeClick(c: ClickRecord, history: readonly ActionRecord[], add: Add
     if (a.moves <= 2 && jump > 80) add("pointer.teleport", { detail: `${a.moves} move${a.moves === 1 ? "" : "s"}, ${Math.round(jump)} px jump` });
     else if (a.moves >= 4 && a.constantSpeedRatio > 0.8 && a.straightness > 0.98) add("pointer.linear", { detail: `${a.moves} evenly spaced moves` });
     else if (a.moves >= 8 && a.straightness < 0.97 && a.constantSpeedRatio < 0.5) add("pointer.human-path", { detail: `${a.moves} moves, ${a.coalesced} samples` });
-    if (a.zeroMovement >= 2) add("pointer.zero-movement", { detail: `${a.zeroMovement} moves` });
+    // Positions are fractional but movement deltas whole pixels, so small real moves read as zero: count it only
+    // when nearly every move on the way had none.
+    if (a.zeroMovement >= 3 && a.zeroMovement >= a.moves * 0.8) add("pointer.zero-movement", { detail: `${a.zeroMovement} moves` });
 
     if (c.hoverMs === null || c.hoverMs <= 15) add("click.no-hover", { detail: c.hoverMs === null ? "no hover" : `${Math.round(c.hoverMs)} ms` });
   }
@@ -63,7 +65,9 @@ function analyzeClick(c: ClickRecord, history: readonly ActionRecord[], add: Add
   else if (c.offsetNorm !== null && c.offsetNorm > 0.08) add("click.off-centre", { detail: `${Math.round(c.offsetPx ?? 0)} px` });
 
   if (c.pressMs !== null) {
-    if (c.pressMs <= 6) add("click.short-press", { detail: `${round(c.pressMs, 1)} ms` });
+    // A trackpad's tap-to-click also releases within a few ms; after a real approach path and a hover it is a person.
+    const tap = mouse && (c.hoverMs ?? 0) > 40 && a.moves >= 3;
+    if (c.pressMs <= 6 && !tap) add("click.short-press", { detail: `${round(c.pressMs, 1)} ms` });
     else if (c.pressMs >= 40 && c.pressMs <= 300) add("click.human-press", { detail: `${Math.round(c.pressMs)} ms` });
   }
 
@@ -123,7 +127,11 @@ function analyzeScroll(s: ScrollRecord, add: Add): void {
 function analyzeCadence(rec: ActionRecord, history: readonly ActionRecord[], add: Add): void {
   const prev = history[history.length - 1];
   // A person needs well over 50 ms to move from one control to another. Batched agent actions do not.
-  if (prev && rec.gapMs !== null && rec.gapMs < 50 && targetOf(prev) !== targetOf(rec) && !(prev.kind === "scroll" && rec.kind === "scroll")) {
+  // Momentum scrolling keeps firing after the fingers lift, and a typing run only ends when the next click takes
+  // focus away, so an action right after either is not evidence. A scroll burst itself spans time (one that began
+  // before a click is recorded after it, 0 ms later), so it never counts either.
+  const spans = (r: ActionRecord) => r.kind === "scroll" || r.kind === "typing";
+  if (prev && rec.gapMs !== null && rec.gapMs < 50 && targetOf(prev) !== targetOf(rec) && !spans(prev) && rec.kind !== "scroll") {
     add("cadence.superhuman", { detail: `${Math.round(rec.gapMs)} ms after the previous action` });
   }
   const recent = [...history.slice(-3), rec];

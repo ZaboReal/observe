@@ -89,6 +89,8 @@ export interface Observation {
 }
 
 export interface EvidenceInput {
+  /** The visitor's user agent, for browser quirks that look like automation (see `discountQuirks`). */
+  ua?: string | null;
   actions: readonly CompactAction[];
   /** Every action seen, including ones dropped from `actions` by the cap. */
   actionCount: number;
@@ -248,18 +250,54 @@ const nz = (n: number) => (n ? n : undefined);
 
 const ruleLabel = (id: string) => (RULES as Record<string, RuleDef>)[id]?.label ?? id;
 
+/** Safari (desktop and iOS), not Chrome or another browser that also says "Safari" in its user agent. */
+export const isSafari = (ua: string | null | undefined) => !!ua && /Safari\//.test(ua) && !/Chrome\/|Chromium\/|CriOS|FxiOS|EdgiOS|Edg\//.test(ua);
+
+/**
+ * Sensor signals that real hardware, browsers or the site itself also produce, taken out before Jev reads the
+ * session. They made Jev score the first two real visitors on arzach.ai (Oct 8, both people) 83-86% agent:
+ * - A trackpad's tap-to-click releases within a few ms; with a real approach path and hover it is not a script.
+ * - Momentum scrolling keeps firing after the fingers lift, so a click right after a scroll is not "superhuman"; nor
+ *   is one right after typing, whose run only ends when the click takes focus away from the field.
+ * - Browsers report pointer positions in fractions of a pixel but movement in whole pixels, so small real moves
+ *   show zero movement deltas (on every move in Safari): not evidence on its own.
+ * - Clicking an in-page link makes the site scroll itself, which reads as a scroll with no wheel or key.
+ * - "Input mechanics match a known agent" is a naming hint, not evidence that an agent is driving.
+ * Older sensors send these, so the console discounts them itself; newer sensors avoid most of them.
+ */
+export function discountQuirks(actions: readonly CompactAction[]): CompactAction[] {
+  return actions.map((a, i) => {
+    const prev = actions[i - 1];
+    const drop = new Set(["driver.mechanics", "pointer.zero-movement"]);
+    // Scroll bursts span time (one that began before a click is recorded after it, 0 ms later), so they never count.
+    if (a.k === "scroll" || prev?.k === "scroll" || prev?.k === "typing") drop.add("cadence.superhuman");
+    if (a.k === "click") {
+      if ((a.hoverMs ?? 0) > 40 && a.moves >= 3) drop.add("click.short-press");
+    }
+    const rules = a.rules.filter((r) => !drop.has(r));
+    if (a.k === "scroll" && prev?.k === "click" && a.programmatic > 0 && (a.gapMs ?? Infinity) < 3_000) {
+      return { ...a, programmatic: 0, rules: rules.filter((r) => r !== "scroll.programmatic") };
+    }
+    return { ...a, rules };
+  });
+}
+
+/** Page signals left out of what Jev reads: agent "screen sizes" are ordinary laptop and monitor sizes too. */
+const NOT_EVIDENCE = new Set(["env.agent-screen"]);
+
 /**
  * The session as Jev reads it: aggregate input mechanics, what the sensor saw on the page, plain-language
  * observations, and the most recent actions. Contains no rule weights, so Jev weighs the evidence itself.
  */
 export function buildEvidence(input: EvidenceInput, driverName: (id: string) => string = (id) => id): Obj {
-  const clicks = input.actions.filter((a): a is ClickAction => a.k === "click");
-  const typing = input.actions.filter((a): a is TypingAction => a.k === "typing");
-  const scrolls = input.actions.filter((a): a is ScrollAction => a.k === "scroll");
-  const forms = input.actions.filter((a): a is FormAction => a.k === "form");
+  const actions = discountQuirks(input.actions);
+  const clicks = actions.filter((a): a is ClickAction => a.k === "click");
+  const typing = actions.filter((a): a is TypingAction => a.k === "typing");
+  const scrolls = actions.filter((a): a is ScrollAction => a.k === "scroll");
+  const forms = actions.filter((a): a is FormAction => a.k === "form");
 
   const hits = new Map<string, number>();
-  for (const a of input.actions) for (const r of a.rules) hits.set(r, (hits.get(r) ?? 0) + 1);
+  for (const a of actions) for (const r of a.rules) hits.set(r, (hits.get(r) ?? 0) + 1);
 
   const clickCount = clicks.length;
   const n = (k: (c: ClickAction) => boolean) => clicks.filter(k).length;
@@ -278,7 +316,7 @@ export function buildEvidence(input: EvidenceInput, driverName: (id: string) => 
     .filter(([count]) => (count as number) > 0)
     .map(([count, what]) => `${count} ${what}`);
 
-  const signals = [...input.observations].slice(0, 30).map((o) => {
+  const signals = [...input.observations].filter((o) => !NOT_EVIDENCE.has(o.id)).slice(0, 30).map((o) => {
     const points = o.drivers.length ? ` (points to ${o.drivers.slice(0, 3).map(driverName).join(", ")})` : "";
     return `${o.label}${o.detail ? `: ${o.detail}` : ""}${points}`;
   });
@@ -339,7 +377,8 @@ export function buildEvidence(input: EvidenceInput, driverName: (id: string) => 
     impossible_for_real_hardware: impossible,
     page_signals: signals,
     observations: [...hits.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([id, n]) => `${ruleLabel(id)} (${n}×)`),
-    recent_actions: input.actions.slice(-15).map(recent),
+    browser: isSafari(input.ua) ? "Safari" : undefined,
+    recent_actions: actions.slice(-15).map(recent),
   });
 }
 

@@ -4,6 +4,10 @@ import type { CaptureContext } from "./context";
 import { SAME_TASK_MS } from "./keyboard";
 import type { ApproachStats, ClickRecord } from "./records";
 
+/** Safari (desktop and iOS), not Chrome or another browser that also says "Safari" in its user agent. */
+const SAFARI =
+  typeof navigator !== "undefined" && /Safari\//.test(navigator.userAgent) && !/Chrome\/|Chromium\/|CriOS|FxiOS|EdgiOS|Edg\//.test(navigator.userAgent);
+
 interface Sample {
   t: number;
   x: number;
@@ -57,7 +61,8 @@ export class PointerTracker {
       /* ignore */
     }
     const moved = this.lastPos ? this.lastPos.x !== e.clientX || this.lastPos.y !== e.clientY : true;
-    const zeroMovement = moved && e.isTrusted && e.movementX === 0 && e.movementY === 0 && this.lastPos !== null;
+    // Safari reports movementX/movementY as 0 on every pointer move, so there it says nothing about automation.
+    const zeroMovement = !SAFARI && moved && e.isTrusted && e.movementX === 0 && e.movementY === 0 && this.lastPos !== null;
     if (noScreenPosition(e)) this.noScreenMoves++;
     const s: Sample = { t, x: e.clientX, y: e.clientY, coalesced, zeroMovement };
     this.samples.push(s);

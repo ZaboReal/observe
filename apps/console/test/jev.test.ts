@@ -103,10 +103,10 @@ describe("parseAnswers and toVerdict", () => {
     answers: { agent: { type: "noul", noul }, driver: { type: "choice", choice, confidence: 0.8, probabilities } },
   });
 
-  it("reads the agent probability and ranks the driver candidates", () => {
+  it("takes the agent probability as everything not given to a person, and ranks the driver candidates", () => {
     const a = parseAnswers(raw(0.97, "playwright", { playwright: 0.7, puppeteer: 0.2, human: 0.1, comet: 0 }));
     expect(a).toEqual({
-      agentProbability: 0.97,
+      agentProbability: 0.9,
       choice: "playwright",
       confidence: 0.8,
       candidates: [
@@ -119,10 +119,17 @@ describe("parseAnswers and toVerdict", () => {
 
   it("throws on a response without the answers we asked for", () => {
     expect(() => parseAnswers({ answers: { agent: { noul: 0.5 } } })).toThrow();
+    expect(() => parseAnswers({ answers: { driver: { choice: "human" } } })).toThrow();
     expect(() => parseAnswers(null)).toThrow();
   });
 
-  const answer = (p: number, choice: string, top = 0.7): JevAnswer => ({ agentProbability: p, choice, confidence: 0.8, candidates: [{ id: choice, p: top }] });
+  /** An answer whose person share is 1 - p, as the console reads it. */
+  const answer = (p: number, choice: string, top = 0.7): JevAnswer => ({
+    agentProbability: p,
+    choice,
+    confidence: 0.8,
+    candidates: choice === HUMAN ? [{ id: HUMAN, p: 1 - p }] : [{ id: choice, p: top }, { id: HUMAN, p: Math.round((1 - p) * 100) / 100 }],
+  });
 
   it("calls an agent only above the threshold, and names it only when the choice is clear", () => {
     expect(toVerdict(answer(AGENT_AT, "playwright"))).toMatchObject({ verdict: "agent", tier: "recognised", driverId: "playwright" });
@@ -130,6 +137,15 @@ describe("parseAnswers and toVerdict", () => {
     expect(toVerdict(answer(0.95, UNKNOWN_AUTOMATION))).toMatchObject({ verdict: "agent", driverId: null });
     expect(toVerdict(answer(0.5, "playwright"))).toMatchObject({ verdict: "unknown" });
     expect(toVerdict(answer(HUMAN_AT, HUMAN))).toMatchObject({ verdict: "human", confidence: 1 - HUMAN_AT });
+  });
+
+  it("reads older answers by their person share, and needs enough actions for an agent", () => {
+    // A real visitor on arzach.ai (Oct 8): an old yes/no answer said 86% agent, but the pick gave a person 49%.
+    const split: JevAnswer = { agentProbability: 0.86, choice: HUMAN, confidence: 0.48, candidates: [{ id: HUMAN, p: 0.49 }, { id: UNKNOWN_AUTOMATION, p: 0.4 }] };
+    expect(toVerdict(split, 20)).toMatchObject({ verdict: "unknown" });
+    // Two actions are not enough for an agent call from behaviour alone.
+    expect(toVerdict(answer(0.95, "playwright"), 2)).toMatchObject({ verdict: "unknown" });
+    expect(toVerdict(answer(0.95, "playwright"), 5)).toMatchObject({ verdict: "agent" });
   });
 });
 

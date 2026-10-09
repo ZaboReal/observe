@@ -70,6 +70,24 @@ Oct 8 · three runs of the demo's five tasks, driven by Claude through the deskt
 - **Vision-only still caught, but misnamed.** With screenshots and coordinate clicks there is nothing on the page. Jev called it an agent from behaviour alone (zero-pressure presses, the pointer jumping straight to each target, text arriving with no key presses, two tabs reporting focus at once), then picked the closest product it knows. The registry describes its mechanics, but they look like Playwright's, so nothing separates the two yet.
 - The same run on a copy of arzach.ai with its real headers (CSP `script-src 'self'`) was caught the same way, and the paper download was logged as an action.
 
+## First real people: arzach.ai (Oct 8)
+
+The first two real visitors after the sensor went live on arzach.ai were both people, and both were misjudged: one (Safari, 20 actions over three pages) was called an agent at 86%, the other (Chrome, 2 actions, a paper download) was left undecided at 83% agent, with the model guessing Microsoft Fara.
+
+What misled it, all of it ordinary hardware or the site itself:
+
+| Signal | Why it fired for a person |
+| --- | --- |
+| Pointer moved with zero movement deltas | Browsers report positions in fractions of a pixel but movement in whole pixels; Safari reports zero on every move |
+| Press and release back to back | A trackpad's tap-to-click releases within a few ms |
+| Moved between controls faster than a person can | Trackpad scroll bursts that began before a click are recorded after it, 0 ms later; a typing run ends when the next click takes focus |
+| Page scrolled with no wheel, key or touch | The site scrolls itself after a link or button is clicked |
+| Screen size typical of agent VMs | 1440x900 is a MacBook screen; agent VMs use ordinary sizes |
+
+And the verdict rule trusted the wrong answer: the model was asked both "is an agent driving?" (86%) and "who is driving?" (a person, 49%), and the console used only the first.
+
+Fixed the same day: the model is asked one question and the agent probability is everything it did not give to a person; an agent needs 85% or more and at least 5 actions; the console discounts the signals above before the model reads a session (so older sensors benefit too); sensor 0.2.1 stops emitting most of them; undecided sessions get their own rules (low-risk actions allowed, the rest ask the person) instead of unknown automation's. Asked again with the cleaned evidence, the model called the two visitors people at 91% and 97%.
+
 ## What this does not show yet
 
 - **People.** No human sessions are in this run, so it says nothing yet about how often a real person would be wrongly flagged. That is the number that matters most.

@@ -8,7 +8,15 @@ export function decide(tier: Tier, action: ActionDef): { outcome: Outcome; polic
   if (tier === "human") return { outcome: "admit", policy: "people/role" };
   if (action.scope === "delete") return { outcome: "refuse", policy: "default/delete-people-only" };
 
-  if (tier === "unknown-automation" || tier === "unknown") {
+  // Undecided means too little evidence either way, not unknown automation: low-risk actions go ahead and the
+  // rest ask the person, who can confirm with a passkey that no agent can approve.
+  if (tier === "unknown") {
+    return action.scope === "view" || action.risk === "low"
+      ? { outcome: "admit", policy: "default/undecided-low-risk" }
+      : { outcome: "ask", policy: "default/undecided-ask" };
+  }
+
+  if (tier === "unknown-automation") {
     return action.scope === "view"
       ? { outcome: "slow", policy: "default/unknown-slow" }
       : { outcome: "refuse", policy: "default/unknown-read-only" };

@@ -35,7 +35,7 @@ function fingerprint(rec: SensorRecord): string {
 export function evidenceFor(rec: SensorRecord): Record<string, unknown> {
   const pages = new Set(rec.events.filter((e) => e.type === "page").map((e) => e.route));
   return buildEvidence(
-    { actions: rec.actions, actionCount: rec.actionCount, observations: rec.observations.values(), pages },
+    { ua: rec.client.ua, actions: rec.actions, actionCount: rec.actionCount, observations: rec.observations.values(), pages },
     (id) => getDriver(id)?.name ?? id,
   );
 }

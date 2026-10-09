@@ -3,7 +3,8 @@ import type { ScrollRecord } from "./records";
 
 const BURST_IDLE_MS = 700;
 /** A scroll this long after the last wheel/key/touch/pointer input has no input behind it. */
-const NO_INPUT_MS = 900;
+/** A page keeps scrolling itself for a while after a click (smooth scrolling to an anchor, a nav link's script). */
+const NO_INPUT_MS = 2_500;
 /** Ignore early scrolls: scroll restoration and anchor jumps on load. */
 const STARTUP_GRACE_MS = 1500;
 

@@ -14,13 +14,22 @@ export const AGENT_AT = 0.85;
 export const HUMAN_AT = 0.15;
 /** The named driver needs at least this share of the choice's probability, otherwise the agent stays unnamed. */
 export const DRIVER_AT = 0.4;
+/**
+ * Behaviour alone needs at least this many actions before Jev may call an agent; with fewer the session stays
+ * undecided. On the first real visitors (arzach.ai, Oct 8) two people were scored 83-86% agent, one of them from 2 actions.
+ */
+export const MIN_ACTIONS_FOR_AGENT = 5;
+
 
 const HUMAN_DESCRIPTION =
   "A person using a real mouse, trackpad, touch screen or keyboard. Includes people using assistive technology " +
   "(screen readers, voice dictation, switch access), password-manager or browser autofill, and paste. People move the " +
   "pointer along curved paths with many samples before clicking, hover and press for tens to hundreds of milliseconds, " +
-  "land off-centre, and type with uneven gaps (often 60-300 ms) and overlapping keys. Real hardware never produces the " +
-  "facts listed under impossible_for_real_hardware, such as mouse presses at fractional pixel positions at 1x zoom.";
+  "land off-centre, and type with uneven gaps (often 60-300 ms) and overlapping keys. Normal for people too: a laptop " +
+  "trackpad's tap-to-click presses for only 0-10 ms; Safari reports zero movement deltas on pointer moves; the page " +
+  "may scroll by itself after a link is clicked; momentum scrolling keeps going right before the next click; few " +
+  "actions on a page that is mostly read. Real hardware never produces the facts listed under " +
+  "impossible_for_real_hardware, such as mouse presses at fractional pixel positions at 1x zoom.";
 
 const UNKNOWN_DESCRIPTION =
   "Clearly automated or scripted input that does not match any of the listed products.";
@@ -104,28 +113,20 @@ export function buildQuestions(drivers: readonly DriverSignature[]): Questions {
   // Jev allows 255 options; the registry has about 70.
   for (const d of drivers.slice(0, 250)) criteria[d.id] = describeDriver(d);
   return {
-    agent: {
-      type: "noul",
-      instructions: "An AI agent or automation tool, not a person, is operating this web session.",
-      criteria: {
-        true:
-          "Input comes from an AI agent, browser extension, framework or script. Any fact under impossible_for_real_hardware " +
-          "means software is generating the input, even when its timing and pointer paths look human.",
-        false: HUMAN_DESCRIPTION,
-      },
-    },
     driver: {
       type: "choice",
       instructions:
         "Which of these is operating this web session? Judge from how input arrives (pointer paths, click and key timing, " +
-        "how text and scrolling arrive) and from any page signals the sensor reported.",
+        "how text and scrolling arrive) and from any page signals the sensor reported. Any fact under " +
+        "impossible_for_real_hardware means software is generating the input, even when its timing and pointer paths " +
+        "look human. With little input to go on, keep the probability spread rather than guessing.",
       criteria,
     },
   };
 }
 
 export interface JevAnswer {
-  /** Probability that an agent is driving, from the `agent` question. */
+  /** Probability that an agent is driving: everything the model did not give to a person. */
   agentProbability: number;
   /** The `driver` option Jev picked. */
   choice: string;
@@ -140,18 +141,29 @@ const prob = (v: unknown): number | null => (typeof v === "number" && Number.isF
 export function parseAnswers(raw: unknown): JevAnswer {
   const answers = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>).answers : null;
   const a = typeof answers === "object" && answers !== null ? (answers as Record<string, Record<string, unknown> | undefined>) : null;
-  const agentProbability = prob(a?.agent?.noul);
   const choice = a?.driver?.choice;
   const probabilities = a?.driver?.probabilities;
-  if (agentProbability === null || typeof choice !== "string" || typeof probabilities !== "object" || probabilities === null) {
-    throw new Error("Jev response is missing the agent or driver answer");
+  if (typeof choice !== "string" || typeof probabilities !== "object" || probabilities === null) {
+    throw new Error("Jev response is missing the driver answer");
   }
-  const candidates = Object.entries(probabilities as Record<string, unknown>)
-    .map(([id, p]) => ({ id, p: prob(p) ?? 0 }))
+  const all = Object.entries(probabilities as Record<string, unknown>).map(([id, p]) => ({ id, p: prob(p) ?? 0 }));
+  const person = all.find((c) => c.id === HUMAN)?.p ?? 0;
+  const candidates = all
     .filter((c) => c.p > 0)
     .sort((x, y) => y.p - x.p)
     .slice(0, 5);
-  return { agentProbability, choice, confidence: prob(a?.driver?.confidence), candidates };
+  return { agentProbability: round2(1 - person), choice, confidence: prob(a?.driver?.confidence), candidates };
+}
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * The probability an agent is driving, from the one question asked: everything not given to a person. Answers
+ * stored before the console asked one question carried a separate yes/no probability; this reads them the same way.
+ */
+export function agentShare(answer: JevAnswer): number {
+  const person = answer.candidates.find((c) => c.id === HUMAN)?.p ?? (answer.choice === HUMAN ? 1 : 0);
+  return round2(1 - person);
 }
 
 export interface JevVerdict {
@@ -169,10 +181,15 @@ export function namedDriver(answer: JevAnswer): string | null {
   return (top?.p ?? 0) >= DRIVER_AT ? answer.choice : null;
 }
 
-/** Turn Jev's answer into a verdict, tier and driver. Between the thresholds the verdict stays unknown. */
-export function toVerdict(answer: JevAnswer): JevVerdict {
-  const p = answer.agentProbability;
-  if (p >= AGENT_AT) {
+/**
+ * Turn the model's answer into a verdict, tier and driver. The agent probability is everything it did not give
+ * to a person; an agent is called at 85% or more, and only with enough to go on (`actions`: how many actions it
+ * read). A person is called at 15% or less. Anything between stays undecided, which is never treated as a person.
+ */
+export function toVerdict(answer: JevAnswer, actions?: number): JevVerdict {
+  const p = agentShare(answer);
+  const enough = actions === undefined || actions >= MIN_ACTIONS_FOR_AGENT;
+  if (p >= AGENT_AT && enough) {
     const driverId = namedDriver(answer);
     return { verdict: "agent", tier: driverId ? "recognised" : "unknown-automation", driverId, confidence: p };
   }
