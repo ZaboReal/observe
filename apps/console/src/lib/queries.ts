@@ -4,6 +4,7 @@ import { ACCOUNTS, SCOPES, UNNAMED_ID, allDrivers, getAccount, getDriver, getUse
 import { DAY, HOUR, MINUTE, reasonsFor } from "./generate";
 import { exactMatch } from "./passport";
 import { decide } from "./policy";
+import { priceFor } from "./pricing";
 import { HISTORY, store } from "./store";
 import { OUTCOME_RANK } from "./format";
 import type { ActionDef, Driver, EntryLogLine, Outcome, Reason, Scope, Session, SessionEvent, Verdict } from "./types";
@@ -106,10 +107,11 @@ export function toRow(s: Session, now: number): SessionRow {
   const last = events[events.length - 1];
   const lastAction = [...events].reverse().find((e) => e.type === "action");
   let outcome: Outcome | null = null;
+  const site = store.siteOf(s);
   if (s.verdict === "agent") {
     for (const e of events) {
       if (e.driver !== "agent" || !e.action) continue;
-      const o = decide(s.tier, e.action).outcome;
+      const o = decide(s.tier, e.action, priceFor(site, e.action.id)).outcome;
       if (outcome === null || OUTCOME_RANK.indexOf(o) < OUTCOME_RANK.indexOf(outcome)) outcome = o;
     }
   }
@@ -430,7 +432,7 @@ export function sessionDetail(siteId: string, id: string, now = Date.now()) {
 
   const decisions = events
     .filter((e): e is SessionEvent & { action: ActionDef } => e.driver === "agent" && e.type === "action" && !!e.action)
-    .map((e) => ({ at: session.startedAt + e.t, action: e.action, ...decide(session.tier, e.action) }));
+    .map((e) => ({ at: session.startedAt + e.t, action: e.action, ...decide(session.tier, e.action, priceFor(store.siteOf(session), e.action.id)) }));
 
   return {
     session,
@@ -473,13 +475,16 @@ export function entryLog(opts: { siteId: string; range: Range; sensitiveOnly?: b
   const sessions = store.sessions(from, to, now, siteId).filter((s) => s.verdict === "agent" && (!opts.driverId || (s.driverId ?? UNNAMED_ID) === opts.driverId));
   const lines: EntryLogLine[] = [];
   const counts = { total: 0, admit: 0, slow: 0, request_access: 0, ask: 0, reroute: 0, bill: 0, refuse: 0 };
+  /** What the billed actions add up to, in millionths of a dollar. */
+  let billed = 0;
   for (const s of sessions) {
     store.events(s, now).forEach((e, j) => {
       if (e.driver !== "agent" || !e.action) return;
       if (opts.sensitiveOnly && e.action.scope === "view") return;
-      const d = decide(s.tier, e.action);
+      const d = decide(s.tier, e.action, priceFor(siteId, e.action.id));
       counts.total++;
       counts[d.outcome]++;
+      billed += d.price ?? 0;
       if (opts.outcome && d.outcome !== opts.outcome) return;
       lines.push({
         id: `e_${s.id.slice(4)}${j.toString(36)}`,
@@ -492,6 +497,7 @@ export function entryLog(opts: { siteId: string; range: Range; sensitiveOnly?: b
         action: e.action,
         outcome: d.outcome,
         policy: d.policy,
+        price: d.price,
       });
     });
   }
@@ -499,6 +505,7 @@ export function entryLog(opts: { siteId: string; range: Range; sensitiveOnly?: b
   lines.length = Math.min(lines.length, Math.max(0, Math.floor(opts.limit ?? 200)));
   return {
     counts,
+    billed,
     lines: lines.map((l) => ({
       ...l,
       email: getUser(l.userId)?.email ?? l.userId,

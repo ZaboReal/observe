@@ -1,15 +1,17 @@
 import "server-only";
 
-import { batchesAfter, dbConfigured, jevAfter, listSites } from "./db";
+import { batchesAfter, dbConfigured, jevAfter, listPrices, listSites } from "./db";
 import { ingest, parseBatch } from "./ingest";
 import { resolvePassport } from "./passport";
+import { setStoredPrices } from "./pricing";
 import { setStoredSites } from "./site";
 import { HISTORY, store, type JevResult } from "./store";
 
 /**
- * Brings this server's in-memory store up to date with the database before a page or API reads it: the list of
- * sites is refreshed, new sensor batches are replayed through the same ingest code, in the order they arrived and
- * at the time they arrived, then Jev's stored answers are applied. Without a database (local development) there is nothing to do.
+ * Brings this server's in-memory store up to date with the database before a page or API reads it: the sites and
+ * their agent prices are refreshed, new sensor batches are replayed through the same ingest code, in the order they
+ * arrived and at the time they arrived, then Jev's stored answers are applied. Without a database (local development)
+ * there is nothing to do.
  *
  * Calls within a second and a half of the last sync reuse it. A forced sync (after a batch was just stored)
  * always runs, after any sync already in flight, so it is sure to include that batch.
@@ -41,9 +43,10 @@ const SITES_TTL_MS = 60_000;
  */
 export function ensureSites(): Promise<void> {
   if (!dbConfigured || Date.now() - state.sitesAt < SITES_TTL_MS) return Promise.resolve();
-  return (state.sitesLoading ??= listSites()
-    .then((rows) => {
+  return (state.sitesLoading ??= Promise.all([listSites(), listPrices()])
+    .then(([rows, prices]) => {
       setStoredSites(rows);
+      setStoredPrices(prices);
       state.sitesAt = Date.now();
     })
     .catch((e) => console.error("[observe] could not load sites:", e instanceof Error ? e.message : e))
@@ -73,7 +76,9 @@ async function run(): Promise<void> {
   const started = Date.now();
   try {
     const since = started - HISTORY;
-    setStoredSites(await listSites());
+    const [sites, prices] = await Promise.all([listSites(), listPrices()]);
+    setStoredSites(sites);
+    setStoredPrices(prices);
     state.sitesAt = Date.now();
     for (;;) {
       const rows = await batchesAfter(state.afterId, since, PAGE);

@@ -62,6 +62,14 @@ export interface StoredSite {
   secret_key_hash: string;
 }
 
+/** An agent price (src/lib/pricing.ts), in millionths of a dollar. Postgres bigints arrive as numbers or strings. */
+export interface StoredPrice {
+  site: string;
+  action_id: string;
+  amount_micro: number | string;
+  currency: string;
+}
+
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const res = await fetch(`${URL_BASE}/rest/v1/rpc/${fn}`, {
     method: "POST",
@@ -117,4 +125,13 @@ export function createSite(site: StoredSite): Promise<void> {
 
 export function setSecretHash(siteId: string, secretKeyHash: string): Promise<void> {
   return rpc("observe_set_secret_v2", { p_id: siteId, p_secret_key_hash: secretKeyHash });
+}
+
+export function listPrices(): Promise<StoredPrice[]> {
+  return rpc("observe_prices_v2", {});
+}
+
+/** Set what agents pay for an action on a site; null removes the price. */
+export function setPrice(siteId: string, actionId: string, micro: number | null): Promise<void> {
+  return rpc("observe_set_price_v2", { p_site: siteId, p_action_id: actionId, p_amount_micro: micro ?? 0 });
 }

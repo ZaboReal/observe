@@ -65,6 +65,7 @@ Response `200`:
   "decidedBy": "exact-match",
   "outcome": "request_access",
   "wouldBlock": false,
+  "price": null,
   "policy": "default/export-needs-approval",
   "token": "valid"
 }
@@ -72,6 +73,7 @@ Response `200`:
 
 - `token`: `"valid"`, `"missing"`, `"invalid"` (bad signature or another site's), or `"expired"`. Without a valid token the session is unknown: `verdict: "unknown"`, and the outcome is what the rules say for an unknown driver.
 - `mode: "observe"`: nothing is enforced yet; `outcome` is what the rules would do and `wouldBlock` is `outcome === "refuse"`. The customer's code may act on it.
+- `price`: agent pricing. When the site charges agents for this action (set on the console's Rules page, stored in `observe.prices`) and the rules would let this agent go ahead or ask for access, `outcome` is `"bill"` and `price` is `{ "amount": 0.25, "currency": "USD", "display": "$0.25" }`; otherwise `null`. People, undecided sessions and unknown automation are never billed, and a price never overrides an action the person must approve. Collecting it is the site's choice: a `402 Payment Required` naming the price, an API key, or an invoice to the agent's operator.
 - The decision is recorded on the session as a server-confirmed action, so it shows in Activity.
 - `401` for a missing or unknown secret key. Answer within ~300 ms; clients time out at 1.5 s and fail open.
 

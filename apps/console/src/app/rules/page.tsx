@@ -2,12 +2,17 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Lock } from "lucide-react";
 
-import { Page, PageHeader, Pill, buttonClass } from "@/components/ui";
+import { Page, PageHeader, Panel, Pill, buttonClass } from "@/components/ui";
 import { TIER_LABEL, num } from "@/lib/format";
 import { currentSite } from "@/lib/current-site";
+import { dbWritable } from "@/lib/db";
+import { formatPrice, formatTotal } from "@/lib/money";
+import { pricingRows } from "@/lib/pricing-view";
 import { syncStore } from "@/lib/sync";
 import type { Tier } from "@/lib/types";
 import { type Choice, ruleEntries, ruleRows, ruleSummary } from "@/lib/views";
+
+import { PricingForm } from "./pricing-form";
 
 export const metadata: Metadata = { title: "Rules" };
 export const dynamic = "force-dynamic";
@@ -34,6 +39,13 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
   const selected = entries.find((e) => e.id === want) ?? entries[0]!;
   const rows = ruleRows(selected.tier);
   const isPeople = selected.tier === "human";
+  const pricing = pricingRows(site.id);
+  const editable = site.stored && dbWritable;
+  // Priced actions this agent could pay for instead, by scope (agent pricing, below).
+  const payable = (scope: string) =>
+    selected.tier === "verified" || selected.tier === "recognised"
+      ? pricing.rows.filter((p) => p.scope === scope && p.price && (p.reach === "agents" || (p.reach === "verified" && selected.tier === "verified")))
+      : [];
 
   return (
     <Page>
@@ -105,6 +117,13 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
                     {r.note ? <span className={r.choice === "ask" ? "text-amber" : "text-ink-2"}>{r.note}. </span> : null}
                     {r.examples.join(", ")}
                   </div>
+                  {payable(r.scope).length > 0 && (
+                    <div className="mt-0.5 truncate text-[12px] text-green">
+                      {r.choice === "allow" ? "Pays" : "Or pays"}: {payable(r.scope)
+                        .map((p) => `${p.label} ${formatPrice(p.price!)}`)
+                        .join(" · ")}
+                    </div>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
                   <span className={`inline-flex rounded-full bg-track p-[3px] text-[12px] text-ink-3 ${r.locked ? "opacity-75" : ""}`} aria-hidden="true">
@@ -129,6 +148,25 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
           </ul>
         </div>
       </div>
+
+      <Panel
+        className="mt-3"
+        flush
+        title={
+          <>
+            Agent pricing <span className="font-normal text-ink-3">· people never pay</span>
+          </>
+        }
+        description="Instead of blocking agents, charge them per action. Your server gets the price with each decision and collects it however suits you."
+      >
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 pb-3">
+          <span className="text-[24px] leading-none font-semibold tracking-[-0.025em] tabular">{formatTotal(pricing.billed)}</span>
+          <span className="text-[12.5px] text-ink-3">
+            billed to agents this week{pricing.billedActions ? ` · ${num(pricing.billedActions)} actions` : ""}
+          </span>
+        </div>
+        <PricingForm rows={pricing.rows} editable={editable} note={site.demo ? "Example prices on the demo site." : editable ? null : "Prices are set on the deployed console."} />
+      </Panel>
 
       <div className="mt-3 grid gap-3 md:grid-cols-3">
         {[

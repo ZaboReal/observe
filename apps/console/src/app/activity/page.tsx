@@ -7,6 +7,7 @@ import { LiveToggle } from "@/components/live";
 import { Time } from "@/components/time";
 import { Empty, Method, Mono, OutcomePill, Page, PageHeader, Panel, RiskTag, SegCount, Segmented, buttonClass } from "@/components/ui";
 import { OUTCOME_LONG, TIER_LABEL, num, personOf } from "@/lib/format";
+import { formatPrice, formatTotal } from "@/lib/money";
 import { EXPORT_CAP, RANGES, entryLog, parseRange, seenDrivers } from "@/lib/queries";
 import { currentSite } from "@/lib/current-site";
 import { syncStore } from "@/lib/sync";
@@ -39,7 +40,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const range = parseRange(one(params.range));
   const o = one(params.outcome);
   const outcome = OUTCOMES.includes(o as Outcome) ? (o as Outcome) : undefined;
-  const { lines, counts } = entryLog({ siteId: site.id,
+  const { lines, counts, billed } = entryLog({ siteId: site.id,
     range,
     sensitiveOnly: one(params.sensitive) === "1",
     driverId: one(params.driver),
@@ -62,7 +63,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
             Every agent action, <em>on record</em>
           </>
         }
-        description="What each agent did, who it acted for, and what your rules decided. Observe mode: decisions are logged, nothing is blocked."
+        description={`What each agent did, who it acted for, and what your rules decided. Observe mode: decisions are logged, nothing is blocked.${billed > 0 ? ` Agents were billed ${formatTotal(billed)} in this range.` : ""}`}
         actions={
           <>
             <Segmented label="Time range" items={RANGES.map((x) => ({ href: href(params, { range: x.id }), label: x.id, active: x.id === range }))} />
@@ -144,6 +145,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
                       </td>
                       <td className="text-right">
                         <OutcomePill outcome={l.outcome} />
+                        {l.price ? <Mono className="mt-1 block text-[12px] text-green">{formatPrice(l.price)}</Mono> : null}
                         <Mono className="mt-1 block text-[11px] text-ink-3">{l.policy}</Mono>
                       </td>
                     </tr>

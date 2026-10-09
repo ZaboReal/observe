@@ -1,10 +1,30 @@
 import type { ActionDef, Outcome, Tier } from "./types";
 
+export interface PolicyDecision {
+  outcome: Outcome;
+  policy: string;
+  /** What the agent pays for this action, in millionths of a dollar, when the outcome is `bill`. */
+  price?: number;
+}
+
 /**
- * The default policy pack from the blueprint, evaluated in observe mode: the console records what
- * would have happened to each agent action without enforcing anything.
+ * The default policy pack from the blueprint, evaluated in observe mode: the console records what would have
+ * happened to each agent action without enforcing anything.
+ *
+ * `price` is what the site charges agents for this action (src/lib/pricing.ts). For a recognised or verified agent it
+ * turns a go-ahead, or a request for access, into `bill`: paying is the access. It never overrides an action the
+ * person must approve (`ask`) or one that is refused, and people, undecided sessions and unknown automation are never
+ * billed.
  */
-export function decide(tier: Tier, action: ActionDef): { outcome: Outcome; policy: string } {
+export function decide(tier: Tier, action: ActionDef, price?: number | null): PolicyDecision {
+  const d = baseDecision(tier, action);
+  if (price && price > 0 && (tier === "verified" || tier === "recognised") && (d.outcome === "admit" || d.outcome === "request_access")) {
+    return { outcome: "bill", policy: `pricing/${action.id}`, price };
+  }
+  return d;
+}
+
+function baseDecision(tier: Tier, action: ActionDef): PolicyDecision {
   if (tier === "human") return { outcome: "admit", policy: "people/role" };
   if (action.scope === "delete") return { outcome: "refuse", policy: "default/delete-people-only" };
 

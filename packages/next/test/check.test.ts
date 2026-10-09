@@ -111,6 +111,7 @@ describe("checkObserve", () => {
       decidedBy: null,
       outcome: "admit",
       wouldBlock: false,
+      price: null,
       policy: null,
       token: "unchecked",
       error: expect.stringContaining("OBSERVE_SECRET_KEY"),

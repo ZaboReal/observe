@@ -4,6 +4,7 @@ import { ACTIONS, SCOPES, UNNAMED_ID, getAccount, getDriver, getUser } from "./c
 import { UNASSIGNED_ACCOUNT, accountText, personText, type Tone } from "./format";
 import { DAY, HOUR, MINUTE } from "./generate";
 import { decide } from "./policy";
+import { priceFor } from "./pricing";
 import { RANGES, accountStats, accounts, driverStats, scopeStats, series, toRow, totals, type Range } from "./queries";
 import { HISTORY, store } from "./store";
 import type { ActionDef, Outcome, Scope, Session, Tier } from "./types";
@@ -126,7 +127,7 @@ export function latestActions(sessions: Session[], now: number, limit = 8): Feed
         person: personText(user?.email ?? s.userId),
         account: accountText(s.accountId, getAccount(s.accountId)?.name ?? s.accountId),
         action: e.action.label,
-        outcome: decide(s.tier, e.action).outcome,
+        outcome: decide(s.tier, e.action, priceFor(store.siteOf(s), e.action.id)).outcome,
       });
     });
     rows.sort((a, b) => b.ts - a.ts);

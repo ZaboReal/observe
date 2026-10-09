@@ -28,8 +28,11 @@ export interface Site {
   secretKeyHash: string | null;
 }
 
+/** The demo site's id. Generated sessions belong to it. */
+export const DEMO_SITE_ID = "ledgerline";
+
 const DEMO: Site = {
-  id: "ledgerline",
+  id: DEMO_SITE_ID,
   name: "Ledgerline",
   host: "app.ledgerline.com",
   environment: "Demo",

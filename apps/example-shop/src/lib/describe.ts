@@ -10,11 +10,11 @@ const WOULD: Record<ObserveOutcome, string> = {
   refuse: "would block",
 };
 
-/** "Observe: agent · Claude in Chrome · would ask for access" */
+/** "Observe: agent · Claude in Chrome · would ask for access", or "… · would bill $0.25" under agent pricing */
 export function describeDecision(d: ObserveDecision): string {
   const parts: string[] = [d.verdict];
   if (d.verdict === "agent") parts.push(d.driver?.name ?? "unrecognised agent");
-  parts.push(WOULD[d.outcome] ?? d.outcome);
+  parts.push(d.outcome === "bill" && d.price ? `${WOULD.bill} ${d.price.display}` : (WOULD[d.outcome] ?? d.outcome));
   return `Observe: ${parts.join(" · ")}`;
 }
 

@@ -3,7 +3,7 @@ import "server-only";
 import type { CompactAction, Observation } from "./evidence";
 import { DAY, MINUTE, buildEvents, sessionsInMinute, summarise } from "./generate";
 import type { JevAnswer } from "./jev-questions";
-import { defaultSite, siteById } from "./site";
+import { DEMO_SITE_ID, defaultSite, siteById } from "./site";
 import type { Reason, Session, SessionEvent, Tier, Verdict } from "./types";
 
 /** The verdict the sensor's own rules reached in the browser. */
@@ -106,6 +106,11 @@ class Store {
       if (r.site === siteId && r.session.startedAt >= from && r.session.startedAt <= end) out.push(r.session);
     }
     return out.sort((a, b) => a.startedAt - b.startedAt);
+  }
+
+  /** The site a session belongs to: the sensor's site, or the demo for generated traffic. */
+  siteOf(session: Session): string {
+    return this.sensor.get(session.id)?.site ?? DEMO_SITE_ID;
   }
 
   /** A session of this site by id. */

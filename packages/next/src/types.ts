@@ -18,6 +18,15 @@ export type ObserveDecidedBy = "signature" | "exact-match" | "jev" | "rules";
  */
 export type ObserveTokenState = "valid" | "missing" | "invalid" | "expired" | "unchecked";
 
+/** What an agent pays for an action under the site's agent pricing. */
+export interface ObservePrice {
+  /** In dollars, e.g. `0.25`. */
+  amount: number;
+  currency: "USD";
+  /** Ready to show, e.g. `$0.25`. */
+  display: string;
+}
+
 export interface ObserveDriver {
   /** Stable id, e.g. `claude-in-chrome`. */
   id: string;
@@ -42,6 +51,11 @@ export interface ObserveDecision {
   outcome: ObserveOutcome;
   /** `outcome === "refuse"`. Act on this to block. */
   wouldBlock: boolean;
+  /**
+   * Agent pricing: what this agent pays for the action when `outcome` is `bill`, otherwise `null`. People are never
+   * charged. Collect it however suits the site (an API key, a 402 Payment Required, an invoice to the operator).
+   */
+  price?: ObservePrice | null;
   /** The rule that produced `outcome`, e.g. `default/export-needs-approval`. */
   policy: string | null;
   token: ObserveTokenState;

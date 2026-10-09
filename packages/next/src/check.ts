@@ -34,6 +34,7 @@ export function failOpen(tokenSent: boolean, error: string): ObserveDecision {
     decidedBy: null,
     outcome: "admit",
     wouldBlock: false,
+    price: null,
     policy: null,
     token: tokenSent ? "unchecked" : "missing",
     error,

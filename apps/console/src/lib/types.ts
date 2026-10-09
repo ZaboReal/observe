@@ -125,4 +125,6 @@ export interface EntryLogLine {
   action: ActionDef;
   outcome: Outcome;
   policy: string;
+  /** What the agent pays for this action, in millionths of a dollar, when the outcome is `bill`. */
+  price?: number;
 }

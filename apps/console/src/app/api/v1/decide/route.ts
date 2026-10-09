@@ -2,6 +2,7 @@ import { getDriver } from "@/lib/catalog";
 import { dbWritable, putBatch } from "@/lib/db";
 import { actionFor, ingest, parseBatch } from "@/lib/ingest";
 import { decide } from "@/lib/policy";
+import { MICRO, formatPrice, priceFor } from "@/lib/pricing";
 import { siteForSecret } from "@/lib/site";
 import { store } from "@/lib/store";
 import { syncStore } from "@/lib/sync";
@@ -13,7 +14,9 @@ import type { Tier, Verdict } from "@/lib/types";
  * secret key and passes the session token the page attached (`x-observe-token`). The browser's own verdict is
  * never trusted: the answer comes from what this console decided about the session.
  *
- * Observe mode: nothing is enforced. `outcome` is what the rules would do; the caller may act on it.
+ * Observe mode: nothing is enforced. `outcome` is what the rules would do; the caller may act on it. When the site
+ * charges agents for the action (agent pricing) and this agent may go ahead, `outcome` is `bill` and `price` says
+ * how much; the site collects it however it likes (an API key, a 402 Payment Required, an invoice to the operator).
  */
 
 const ACTION_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
   const verdict: Verdict = session?.verdict ?? "unknown";
   const tier: Tier = session?.tier ?? "unknown";
   const action = actionFor(body.action, path);
-  const { outcome, policy } = decide(tier, action);
+  const { outcome, policy, price } = decide(tier, action, priceFor(site.id, action.id));
   const driver = verdict === "agent" && session?.driverId ? getDriver(session.driverId) : undefined;
 
   // Mark the action on the session, through the same stored-batch path as sensor data so every instance sees it.
@@ -80,6 +83,7 @@ export async function POST(req: Request) {
       method,
       outcome,
       wouldBlock: outcome === "refuse",
+      price: price ? { amount: price / MICRO, currency: "USD", display: formatPrice(price) } : null,
       policy,
       token: check.status,
     },

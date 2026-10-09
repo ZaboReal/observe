@@ -153,7 +153,7 @@ ${o.nginx}
 \`\`\`
 ${o.check}
 \`\`\`
-The answer: { mode, verdict (human | agent | unknown), driver { id, name, provider }, confidence, outcome, wouldBlock, policy, token (valid | missing | invalid | expired) }. Use a 1.5 s timeout and proceed if it fails.
+The answer: { mode, verdict (human | agent | unknown), driver { id, name, provider }, confidence, outcome, wouldBlock, price ({ amount, currency, display } when outcome is bill: the site charges agents for this action; else null), policy, token (valid | missing | invalid | expired) }. Use a 1.5 s timeout and proceed if it fails.
 
 ## Check it works
 

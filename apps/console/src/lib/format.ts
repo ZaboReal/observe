@@ -98,7 +98,7 @@ export const OUTCOME_TONE: Record<Outcome, Tone> = {
   request_access: "ask",
   ask: "ask",
   reroute: "ask",
-  bill: "mute",
+  bill: "ok",
   refuse: "no",
 };
 
