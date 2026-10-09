@@ -1,6 +1,7 @@
 import "server-only";
 
-import { batchesAfter, dbConfigured, jevAfter, listPrices, listSites } from "./db";
+import { setStoredAgentRules } from "./agent-rules";
+import { batchesAfter, dbConfigured, jevAfter, listAgentRules, listPrices, listSites } from "./db";
 import { ingest, parseBatch } from "./ingest";
 import { resolvePassport } from "./passport";
 import { setStoredPrices } from "./pricing";
@@ -8,10 +9,10 @@ import { setStoredSites } from "./site";
 import { HISTORY, store, type JevResult } from "./store";
 
 /**
- * Brings this server's in-memory store up to date with the database before a page or API reads it: the sites and
- * their agent prices are refreshed, new sensor batches are replayed through the same ingest code, in the order they
- * arrived and at the time they arrived, then Jev's stored answers are applied. Without a database (local development)
- * there is nothing to do.
+ * Brings this server's in-memory store up to date with the database before a page or API reads it: the sites, their
+ * agent prices and agent rules are refreshed, new sensor batches are replayed through the same ingest code, in the
+ * order they arrived and at the time they arrived, then Jev's stored answers are applied. Without a database (local
+ * development) there is nothing to do.
  *
  * Calls within a second and a half of the last sync reuse it. A forced sync (after a batch was just stored)
  * always runs, after any sync already in flight, so it is sure to include that batch.
@@ -38,12 +39,31 @@ const state = (g.__observeSync ??= { sitesAt: 0, sitesLoading: null, afterId: 0,
 const SITES_TTL_MS = 60_000;
 
 /**
+ * Load the agent rules. A failure is logged (once per distinct error, since syncs are frequent) and the last rules
+ * loaded stay in place, so the sites and prices still load.
+ */
+let rulesError: string | null = null;
+function loadAgentRules(): Promise<void> {
+  return listAgentRules().then(
+    (rows) => {
+      setStoredAgentRules(rows);
+      rulesError = null;
+    },
+    (e) => {
+      const message = e instanceof Error ? e.message : String(e);
+      if (message !== rulesError) console.error("[observe] could not load agent rules:", message);
+      rulesError = message;
+    },
+  );
+}
+
+/**
  * Make sure the database's sites are loaded, without a full sync. The collector calls this before looking up a
  * batch's key, so a freshly started server knows every site from its first request.
  */
 export function ensureSites(): Promise<void> {
   if (!dbConfigured || Date.now() - state.sitesAt < SITES_TTL_MS) return Promise.resolve();
-  return (state.sitesLoading ??= Promise.all([listSites(), listPrices()])
+  return (state.sitesLoading ??= Promise.all([listSites(), listPrices(), loadAgentRules()])
     .then(([rows, prices]) => {
       setStoredSites(rows);
       setStoredPrices(prices);
@@ -76,7 +96,7 @@ async function run(): Promise<void> {
   const started = Date.now();
   try {
     const since = started - HISTORY;
-    const [sites, prices] = await Promise.all([listSites(), listPrices()]);
+    const [sites, prices] = await Promise.all([listSites(), listPrices(), loadAgentRules()]);
     setStoredSites(sites);
     setStoredPrices(prices);
     state.sitesAt = Date.now();
