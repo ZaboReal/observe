@@ -820,7 +820,7 @@ Sources: <https://github.com/magnitudedev/magnitude>
 
 ### Anthropic browser tooling (main-world refs)
 
-`anthropic-browser-demo` · Anthropic · confidence: lab
+`anthropic-browser-tooling` · Anthropic · confidence: lab
 
 | | |
 | --- | --- |

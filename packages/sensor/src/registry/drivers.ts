@@ -934,7 +934,7 @@ export const DRIVERS: DriverSignature[] = [
     sources: ["https://github.com/magnitudedev/magnitude"],
   },
   {
-    id: "anthropic-browser-demo",
+    id: "anthropic-browser-tooling",
     name: "Anthropic browser tooling (main-world refs)",
     provider: "Anthropic",
     kind: "framework",

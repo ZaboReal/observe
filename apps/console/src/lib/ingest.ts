@@ -1,7 +1,7 @@
 import "server-only";
 
 import { RULES, type RuleDef } from "@observe/sensor";
-import { ACTIONS, SITE_ACTIONS, registerUser } from "./catalog";
+import { ACTIONS, SITE_ACTIONS, canonicalDriver, registerUser } from "./catalog";
 import type { BatchMeta } from "./db";
 import { compactAction, type CompactAction } from "./evidence";
 import { MINUTE, summarise } from "./generate";
@@ -83,7 +83,8 @@ const time = (v: unknown): number => Math.max(0, Math.min(fin(v) ?? 0, 7 * 24 * 
 function parsePassport(v: unknown): Passport | null {
   if (!isObj(v) || !VERDICTS.has(v.verdict as Verdict) || !TIERS.has(v.tier as Tier)) return null;
   if (v.source !== undefined && !SOURCES.has(v.source as string)) return null;
-  const driver = isObj(v.driver) ? str(v.driver.id, LIMITS.id) : null;
+  const raw = isObj(v.driver) ? str(v.driver.id, LIMITS.id) : null;
+  const driver = raw ? canonicalDriver(raw) : null;
   const reasons: [string, number][] = [];
   if (Array.isArray(v.reasons)) {
     for (const r of v.reasons.slice(0, 16)) {
@@ -165,7 +166,7 @@ function driverIds(v: unknown): string[] {
     .filter((e): e is [string, number] => e[0].length <= LIMITS.id && typeof e[1] === "number" && Number.isFinite(e[1]) && e[1] > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
-    .map(([id]) => id);
+    .map(([id]) => canonicalDriver(id));
 }
 
 /** Validate a raw body. Returns null when it is not a sensor batch at all; bad records inside are dropped. */

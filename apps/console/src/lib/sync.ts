@@ -1,6 +1,7 @@
 import "server-only";
 
 import { setStoredAgentRules } from "./agent-rules";
+import { canonicalDriver } from "./catalog";
 import { batchesAfter, dbConfigured, jevAfter, listAgentRules, listPrices, listRates, listSites } from "./db";
 import { ingest, parseBatch } from "./ingest";
 import { resolvePassport } from "./passport";
@@ -114,7 +115,9 @@ async function run(): Promise<void> {
     for (const row of await jevAfter(state.jevAfter)) {
       state.jevAfter = Math.max(state.jevAfter, row.updated_at);
       const rec = store.sensor.get(row.session_id);
-      const answer = row.answer as JevResult;
+      const stored = row.answer as JevResult;
+      // Answers stored before a driver was renamed name it by its old id.
+      const answer: JevResult = { ...stored, choice: canonicalDriver(stored.choice), candidates: stored.candidates.map((c) => ({ ...c, id: canonicalDriver(c.id) })) };
       if (!rec || (rec.jev && rec.jev.at >= answer.at)) continue;
       rec.jev = answer;
       // The stored fingerprint says which evidence Jev saw, so this instance does not ask again about it.

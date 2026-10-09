@@ -36,8 +36,16 @@ for (const d of SENSOR_DRIVERS) {
   driverById.set(d.id, { id: d.id, name: d.name, provider: d.provider, kind: d.kind, tier: SIGNING.has(d.id) ? "verified" : "recognised", share: 0 });
 }
 
+/** Registry ids that were renamed, so data stored or sent under the old id (older sensors) still names the driver. */
+const DRIVER_ALIASES: Record<string, string> = { "anthropic-browser-demo": "anthropic-browser-tooling" };
+
+/** The current id for a driver id that may have been renamed. */
+export function canonicalDriver(id: string): string {
+  return DRIVER_ALIASES[id] ?? id;
+}
+
 export function getDriver(id: string | null | undefined): (Driver & { share: number }) | undefined {
-  return id ? driverById.get(id) : undefined;
+  return id ? driverById.get(canonicalDriver(id)) : undefined;
 }
 
 /** Every driver the console can name, demo traffic first. */
