@@ -11,7 +11,9 @@ import { Time } from "@/components/time";
 import { Avatar, Empty, LiveDot, Method, Mono, OutcomePill, Page, Panel, RiskTag, ShareBar, Who } from "@/components/ui";
 import { VisitTabs } from "@/components/visit-tabs";
 import { KIND_LABEL, TIER_LABEL, accountText, ago, duration, num, personOf, personText } from "@/lib/format";
+import { sessionBill } from "@/lib/billing";
 import { agentShare } from "@/lib/jev-questions";
+import { formatMinutes, formatPrice, formatTotal } from "@/lib/money";
 import { sessionDetail, sessionVisit } from "@/lib/queries";
 import { currentSite } from "@/lib/current-site";
 import { syncStore } from "@/lib/sync";
@@ -37,6 +39,7 @@ export default async function SessionPage({ params }: Props) {
   if (!d) notFound();
   const { session: s, row, events, now } = d;
   const visit = sessionVisit(site.id, s, now);
+  const bill = sessionBill(site.id, s, now);
   const person = personOf(row.email);
   const account = site.anonymous ? null : accountText(s.accountId, d.account?.name ?? s.accountId);
 
@@ -332,6 +335,24 @@ export default async function SessionPage({ params }: Props) {
               </div>
             ) : (
               <Empty title="No agent actions">{s.verdict === "agent" ? "The agent has not done anything sensitive yet." : "Nothing in this session was driven by an agent."}</Empty>
+            )}
+            {bill.total > 0 && (
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-line px-4 py-3">
+                <span className="text-[13px] text-ink-2">
+                  Billed to the agent{" "}
+                  <span className="text-ink-3">
+                    ·{" "}
+                    {[
+                      bill.time ? `${formatMinutes(bill.minutes)} of agent time ${formatPrice(bill.time)}` : null,
+                      bill.session ? `session ${formatPrice(bill.session)}` : null,
+                      bill.actionCount ? `${num(bill.actionCount)} ${bill.actionCount === 1 ? "action" : "actions"} ${formatPrice(bill.actions)}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <span className="font-mono text-[15px] font-medium text-green tabular">{formatTotal(bill.total)}</span>
+              </div>
             )}
           </Panel>
 

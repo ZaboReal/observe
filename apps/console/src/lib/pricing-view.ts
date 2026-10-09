@@ -1,10 +1,11 @@
 import "server-only";
 
+import { agentBilling, type AgentBilling } from "./billing";
 import { ACTIONS } from "./catalog";
 import { DAY } from "./generate";
 import { actionFor } from "./ingest";
 import { decide } from "./policy";
-import { priceFor, sitePrices } from "./pricing";
+import { priceFor, rateFor, sitePrices } from "./pricing";
 import { siteById } from "./site";
 import { store } from "./store";
 import type { ActionDef, Scope } from "./types";
@@ -33,13 +34,20 @@ export function priceReach(action: ActionDef): PriceReach {
   return "never";
 }
 
-/** Rows for the Rules page's pricing panel: the site's actions (seen this week, or already priced) with what agents paid. */
-export function pricingRows(siteId: string, now = Date.now()): { rows: PricingRow[]; billed: number; billedActions: number } {
+export interface PricingView {
+  rows: PricingRow[];
+  /** Per hour of agent time and per agent session, millionths of a dollar. */
+  rates: { hour: number | null; session: number | null };
+  /** Everything agents were billed this week: actions, time and sessions. */
+  billing: AgentBilling;
+}
+
+/** The Rules page's billing panel: rates, the site's actions (seen this week, or already priced) and what agents were billed. */
+export function pricingRows(siteId: string, now = Date.now()): PricingView {
   const site = siteById(siteId);
   const actions = new Map<string, ActionDef>();
   const agentActions = new Map<string, number>();
   const billed = new Map<string, number>();
-  let billedActions = 0;
 
   for (const s of store.sessions(now - 7 * DAY, now, now, siteId)) {
     for (const e of store.events(s, now)) {
@@ -50,7 +58,6 @@ export function pricingRows(siteId: string, now = Date.now()): { rows: PricingRo
       const d = decide(s.tier, e.action, priceFor(siteId, e.action.id));
       if (d.price) {
         billed.set(e.action.id, (billed.get(e.action.id) ?? 0) + d.price);
-        billedActions++;
       }
     }
   }
@@ -77,5 +84,5 @@ export function pricingRows(siteId: string, now = Date.now()): { rows: PricingRo
       b.agentActions - a.agentActions ||
       a.label.localeCompare(b.label),
   );
-  return { rows, billed: [...billed.values()].reduce((x, y) => x + y, 0), billedActions };
+  return { rows, rates: { hour: rateFor(siteId, "hour"), session: rateFor(siteId, "session") }, billing: agentBilling(siteId, now - 7 * DAY, now, now) };
 }

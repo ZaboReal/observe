@@ -7,7 +7,7 @@
  * Prices live in the database (`observe.prices`, loaded with the sites by `syncStore`). Amounts are in millionths of
  * a dollar so per-request prices like $0.002 are exact. The demo site has fixed prices so it shows what pricing earns.
  */
-import type { StoredPrice } from "./db";
+import type { StoredPrice, StoredRate } from "./db";
 import { DEMO_SITE_ID } from "./site";
 
 export { MICRO, formatPrice, formatTotal, parsePrice } from "./money";
@@ -22,9 +22,16 @@ const DEMO_PRICES: Record<string, number> = {
   export_customers: 500_000,
 };
 
+/** The demo's time and session rates. */
+const DEMO_RATES: Record<RateUnit, number> = { hour: 1_500_000, session: 20_000 };
+
+/** Billing by time and by session: per hour an agent drives a session, and per agent session. */
+export type RateUnit = "hour" | "session";
+
 // On globalThis so a dev-server reload keeps what the last sync loaded.
-const g = globalThis as unknown as { __observePrices?: Map<string, Map<string, number>> };
+const g = globalThis as unknown as { __observePrices?: Map<string, Map<string, number>>; __observeRates?: Map<string, Partial<Record<RateUnit, number>>> };
 g.__observePrices ??= new Map();
+g.__observeRates ??= new Map();
 
 /** Replace the database's prices (called by `syncStore`). */
 export function setStoredPrices(rows: StoredPrice[]): void {
@@ -57,4 +64,29 @@ export function sitePrices(siteId: string): Map<string, number> {
 export function priceFor(siteId: string, actionId: string): number | null {
   if (siteId === DEMO_SITE_ID) return DEMO_PRICES[actionId] ?? null;
   return g.__observePrices!.get(siteId)?.get(actionId) ?? null;
+}
+
+/** Replace the database's time and session rates (called by `syncStore`). */
+export function setStoredRates(rows: StoredRate[]): void {
+  const bySite = new Map<string, Partial<Record<RateUnit, number>>>();
+  for (const r of rows) {
+    const amount = Number(r.amount_micro);
+    if ((r.unit !== "hour" && r.unit !== "session") || !Number.isFinite(amount) || amount <= 0) continue;
+    bySite.set(r.site, { ...bySite.get(r.site), [r.unit]: amount });
+  }
+  g.__observeRates = bySite;
+}
+
+/** Record a rate this server just wrote, so the page shows it before the next sync. Null removes it. */
+export function setLocalRate(siteId: string, unit: RateUnit, micro: number | null): void {
+  const rates = { ...g.__observeRates!.get(siteId) };
+  if (micro && micro > 0) rates[unit] = micro;
+  else delete rates[unit];
+  g.__observeRates!.set(siteId, rates);
+}
+
+/** What an agent pays per hour of driving, or per session, on this site, in millionths of a dollar; null when free. */
+export function rateFor(siteId: string, unit: RateUnit): number | null {
+  if (siteId === DEMO_SITE_ID) return DEMO_RATES[unit];
+  return g.__observeRates!.get(siteId)?.[unit] ?? null;
 }

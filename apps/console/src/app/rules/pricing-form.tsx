@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import { buttonClass } from "@/components/ui";
-import { formatPrice, formatTotal, MICRO } from "@/lib/money";
+import { formatMinutes, formatPrice, formatTotal, MICRO } from "@/lib/money";
 import type { PriceReach, PricingRow } from "@/lib/pricing-view";
 
 import { savePricesAction } from "./actions";
@@ -23,27 +23,91 @@ function dollars(micro: number | null): string {
   return String(Number((micro / MICRO).toFixed(6)));
 }
 
-export function PricingForm({ rows, editable, note }: { rows: PricingRow[]; editable: boolean; note: string | null }) {
+const ROW = "grid grid-cols-[minmax(0,1fr)_112px] items-center gap-x-4 gap-y-1 border-t border-line px-4 py-3 lg:grid-cols-[minmax(0,1fr)_200px_128px]";
+const STATS = "col-span-2 row-start-2 text-[12px] text-ink-3 lg:col-span-1 lg:row-start-auto lg:text-right";
+const BOX_CELL = "relative col-start-2 row-start-1 lg:col-start-auto lg:row-start-auto";
+
+function PriceBox({ name, value, label, editable }: { name: string; value: number | null; label: string; editable: boolean }) {
+  return (
+    <label className={BOX_CELL}>
+      <span className="sr-only">{label}</span>
+      {editable ? (
+        <>
+          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 font-mono text-[13px] text-ink-3">$</span>
+          <input name={name} defaultValue={dollars(value)} placeholder="No charge" inputMode="decimal" autoComplete="off" className={box} />
+        </>
+      ) : (
+        <span className={`block text-right font-mono text-[13px] tabular ${value ? "text-ink" : "text-ink-3"}`}>{value ? formatPrice(value) : "No charge"}</span>
+      )}
+    </label>
+  );
+}
+
+export interface BillingTotals {
+  time: number;
+  minutes: number;
+  sessions: number;
+  sessionCount: number;
+}
+
+export function PricingForm({
+  rows,
+  rates,
+  billing,
+  editable,
+  note,
+}: {
+  rows: PricingRow[];
+  rates: { hour: number | null; session: number | null };
+  billing: BillingTotals;
+  editable: boolean;
+  note: string | null;
+}) {
   const [state, action, pending] = useActionState(savePricesAction, { error: null, saved: null });
 
   return (
     <form action={action}>
+      <div className="eyebrow border-t border-line bg-tile px-4 py-2">By time</div>
+      <div className={ROW}>
+        <div className="min-w-0">
+          <div className="text-[14px]">Per hour of agent time</div>
+          <div className="text-[12px] leading-[1.45] text-ink-3">Charged by the minute while a recognised or verified agent drives</div>
+        </div>
+        <div className={STATS}>
+          {billing.minutes ? `${formatMinutes(billing.minutes)} this week` : "No agent time this week"}
+          {billing.time > 0 && <span className="block font-medium text-green">{formatTotal(billing.time)} billed</span>}
+        </div>
+        <PriceBox name="rate:hour" value={rates.hour} label="Price per hour of agent time" editable={editable} />
+      </div>
+      <div className={ROW}>
+        <div className="min-w-0">
+          <div className="text-[14px]">Per agent session</div>
+          <div className="text-[12px] leading-[1.45] text-ink-3">Once for each session a recognised or verified agent drives</div>
+        </div>
+        <div className={STATS}>
+          {billing.sessionCount ? `${billing.sessionCount.toLocaleString("en-US")} sessions this week` : "No billed sessions this week"}
+          {billing.sessions > 0 && <span className="block font-medium text-green">{formatTotal(billing.sessions)} billed</span>}
+        </div>
+        <PriceBox name="rate:session" value={rates.session} label="Price per agent session" editable={editable} />
+      </div>
+
+      <div className="eyebrow border-t border-line bg-tile px-4 py-2">Per action</div>
       {rows.length === 0 ? (
-        <p className="px-4 pb-4 text-[13px] leading-[1.55] text-ink-2">
+        <p className="border-t border-line px-4 py-3 text-[13px] leading-[1.55] text-ink-2">
           No actions on this site yet. They appear once the sensor or your server reports one (<span className="font-mono text-[12px]">observe.check(&quot;export_invoices&quot;)</span>), or price one
           below before it happens.
         </p>
       ) : (
         <ul>
           {rows.map((r) => (
-            <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_112px] items-center gap-x-4 gap-y-1 border-t border-line px-4 py-3 lg:grid-cols-[minmax(0,1fr)_180px_128px]">
+            <li key={r.id} className={ROW}>
               <div className="min-w-0">
                 <div className="truncate text-[14px]">{r.label}</div>
                 <div className="text-[12px] leading-[1.45] text-ink-3">
                   <span className="font-mono text-[11.5px] break-all">{r.id}</span> · {REACH[r.reach]}
                 </div>
               </div>
-              <div className="col-span-2 row-start-2 text-[12px] text-ink-3 lg:col-span-1 lg:row-start-auto lg:text-right">
+              <div className={STATS}>
                 {r.agentActions ? (
                   <>
                     {r.agentActions.toLocaleString("en-US")} by agents this week
@@ -53,26 +117,18 @@ export function PricingForm({ rows, editable, note }: { rows: PricingRow[]; edit
                   "None by agents this week"
                 )}
               </div>
-              <label className="relative col-start-2 row-start-1 lg:col-start-auto lg:row-start-auto">
-                <span className="sr-only">Price per action for {r.label}</span>
-                {editable && r.reach !== "never" ? (
-                  <>
-                    <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 font-mono text-[13px] text-ink-3">$</span>
-                    <input name={`price:${r.id}`} defaultValue={dollars(r.price)} placeholder="Free" inputMode="decimal" autoComplete="off" className={box} />
-                  </>
-                ) : (
-                  <span className={`block text-right font-mono text-[13px] tabular ${r.price && r.reach !== "never" ? "text-ink" : "text-ink-3"}`}>
-                    {r.reach === "never" ? "—" : r.price ? formatPrice(r.price) : "Free"}
-                  </span>
-                )}
-              </label>
+              {r.reach === "never" ? (
+                <span className={`${BOX_CELL} block text-right font-mono text-[13px] text-ink-3`}>—</span>
+              ) : (
+                <PriceBox name={`price:${r.id}`} value={r.price} label={`Price per action for ${r.label}`} editable={editable} />
+              )}
             </li>
           ))}
         </ul>
       )}
 
       {editable && (
-        <div className="grid grid-cols-[minmax(0,1fr)_112px] items-center gap-x-4 border-t border-line px-4 py-3 lg:grid-cols-[minmax(0,1fr)_180px_128px]">
+        <div className={ROW}>
           <label className="min-w-0">
             <span className="sr-only">Action id to price</span>
             <input name="new_action" placeholder="Price another action: its id, e.g. export_invoices" autoComplete="off" className={`${field} px-4 text-[12.5px]`} />
@@ -93,7 +149,7 @@ export function PricingForm({ rows, editable, note }: { rows: PricingRow[]; edit
           ) : state.saved !== null ? (
             <span className="text-green">{state.saved === 0 ? "Nothing changed." : `Saved ${state.saved} ${state.saved === 1 ? "price" : "prices"}.`}</span>
           ) : (
-            (note ?? "Per action, in US dollars. Leave a box empty to keep it free.")
+            (note ?? "In US dollars. Leave a box empty for no charge.")
           )}
         </p>
         {editable && (

@@ -1,9 +1,9 @@
 import "server-only";
 
-import { batchesAfter, dbConfigured, jevAfter, listPrices, listSites } from "./db";
+import { batchesAfter, dbConfigured, jevAfter, listPrices, listRates, listSites } from "./db";
 import { ingest, parseBatch } from "./ingest";
 import { resolvePassport } from "./passport";
-import { setStoredPrices } from "./pricing";
+import { setStoredPrices, setStoredRates } from "./pricing";
 import { setStoredSites } from "./site";
 import { HISTORY, store, type JevResult } from "./store";
 
@@ -43,10 +43,11 @@ const SITES_TTL_MS = 60_000;
  */
 export function ensureSites(): Promise<void> {
   if (!dbConfigured || Date.now() - state.sitesAt < SITES_TTL_MS) return Promise.resolve();
-  return (state.sitesLoading ??= Promise.all([listSites(), listPrices()])
-    .then(([rows, prices]) => {
+  return (state.sitesLoading ??= Promise.all([listSites(), listPrices(), listRates()])
+    .then(([rows, prices, rates]) => {
       setStoredSites(rows);
       setStoredPrices(prices);
+      setStoredRates(rates);
       state.sitesAt = Date.now();
     })
     .catch((e) => console.error("[observe] could not load sites:", e instanceof Error ? e.message : e))
@@ -76,9 +77,10 @@ async function run(): Promise<void> {
   const started = Date.now();
   try {
     const since = started - HISTORY;
-    const [sites, prices] = await Promise.all([listSites(), listPrices()]);
+    const [sites, prices, rates] = await Promise.all([listSites(), listPrices(), listRates()]);
     setStoredSites(sites);
     setStoredPrices(prices);
+    setStoredRates(rates);
     state.sitesAt = Date.now();
     for (;;) {
       const rows = await batchesAfter(state.afterId, since, PAGE);

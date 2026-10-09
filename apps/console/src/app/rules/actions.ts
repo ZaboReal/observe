@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { currentSite } from "@/lib/current-site";
-import { dbWritable, setPrice } from "@/lib/db";
-import { parsePrice, priceFor, setLocalPrice } from "@/lib/pricing";
+import { dbWritable, setPrice, setRate } from "@/lib/db";
+import { parsePrice, priceFor, rateFor, setLocalPrice, setLocalRate, type RateUnit } from "@/lib/pricing";
 import { syncStore } from "@/lib/sync";
 
 export interface PricingState {
@@ -15,12 +15,21 @@ export interface PricingState {
 const ACTION_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 
 /**
- * Save the pricing panel: one `price:<action id>` field per action, plus an optional new action (`new_action`,
- * `new_price`). Only changed prices are written. An empty box makes the action free again.
+ * Save the billing panel: `rate:hour` and `rate:session`, one `price:<action id>` field per action, and an optional
+ * new action (`new_action`, `new_price`). Only changed prices are written. An empty box removes the charge.
  */
 export async function savePricesAction(_prev: PricingState, form: FormData): Promise<PricingState> {
   const site = await currentSite();
   if (!site.stored || !dbWritable) return { error: "Prices can only be set on the deployed console, for sites added there.", saved: null };
+
+  const rates = new Map<RateUnit, number | null>();
+  for (const unit of ["hour", "session"] as const) {
+    const value = form.get(`rate:${unit}`);
+    if (typeof value !== "string") continue;
+    const micro = parsePrice(value);
+    if (micro === undefined) return { error: `“${value}” is not a price. Use dollars, like 2 or 0.10, up to $100.`, saved: null };
+    rates.set(unit, micro);
+  }
 
   const wanted = new Map<string, number | null>();
   for (const [key, value] of form.entries()) {
@@ -42,6 +51,12 @@ export async function savePricesAction(_prev: PricingState, form: FormData): Pro
 
   let saved = 0;
   try {
+    for (const [unit, micro] of rates) {
+      if ((rateFor(site.id, unit) ?? null) === micro) continue;
+      await setRate(site.id, unit, micro);
+      setLocalRate(site.id, unit, micro);
+      saved++;
+    }
     for (const [id, micro] of wanted) {
       if ((priceFor(site.id, id) ?? null) === micro) continue;
       await setPrice(site.id, id, micro);

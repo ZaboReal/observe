@@ -28,3 +28,11 @@ export function parsePrice(text: string): number | null | undefined {
   if (!Number.isFinite(micro) || micro > MAX_PRICE_MICRO) return undefined;
   return micro > 0 ? micro : null;
 }
+
+/** 45 min, 2 h, 2 h 14 min */
+export function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  if (!h) return `${m} min`;
+  return m ? `${h.toLocaleString("en-US")} h ${m} min` : `${h.toLocaleString("en-US")} h`;
+}

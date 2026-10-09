@@ -135,3 +135,19 @@ export function listPrices(): Promise<StoredPrice[]> {
 export function setPrice(siteId: string, actionId: string, micro: number | null): Promise<void> {
   return rpc("observe_set_price_v2", { p_site: siteId, p_action_id: actionId, p_amount_micro: micro ?? 0 });
 }
+
+/** An agent rate (src/lib/pricing.ts): per hour of agent time or per agent session, in millionths of a dollar. */
+export interface StoredRate {
+  site: string;
+  unit: string;
+  amount_micro: number | string;
+}
+
+export function listRates(): Promise<StoredRate[]> {
+  return rpc("observe_agent_rates_v2", {});
+}
+
+/** Set what agents pay per hour or per session on a site; null removes the rate. */
+export function setRate(siteId: string, unit: "hour" | "session", micro: number | null): Promise<void> {
+  return rpc("observe_set_agent_rate_v2", { p_site: siteId, p_unit: unit, p_amount_micro: micro ?? 0 });
+}

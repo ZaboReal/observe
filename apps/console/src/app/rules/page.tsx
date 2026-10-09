@@ -6,7 +6,7 @@ import { Page, PageHeader, Panel, Pill, buttonClass } from "@/components/ui";
 import { TIER_LABEL, num } from "@/lib/format";
 import { currentSite } from "@/lib/current-site";
 import { dbWritable } from "@/lib/db";
-import { formatPrice, formatTotal } from "@/lib/money";
+import { formatMinutes, formatPrice, formatTotal } from "@/lib/money";
 import { pricingRows } from "@/lib/pricing-view";
 import { syncStore } from "@/lib/sync";
 import type { Tier } from "@/lib/types";
@@ -152,20 +152,24 @@ export default async function RulesPage({ searchParams }: { searchParams: Promis
       <Panel
         className="mt-3"
         flush
-        title={
-          <>
-            Agent pricing <span className="font-normal text-ink-3">· people never pay</span>
-          </>
-        }
-        description="Instead of blocking agents, charge them per action. Your server gets the price with each decision and collects it however suits you."
+        title="Agent billing"
+        description="Charge agents for what they use: per action, per hour of agent time, or per session. Your server gets the price with each decision, and every charge is on record in Activity."
       >
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 pb-3">
-          <span className="text-[24px] leading-none font-semibold tracking-[-0.025em] tabular">{formatTotal(pricing.billed)}</span>
+          <span className="text-[24px] leading-none font-semibold tracking-[-0.025em] tabular">{formatTotal(pricing.billing.total)}</span>
           <span className="text-[12.5px] text-ink-3">
-            billed to agents this week{pricing.billedActions ? ` · ${num(pricing.billedActions)} actions` : ""}
+            {["billed to agents this week", pricing.billing.actionCount ? `${num(pricing.billing.actionCount)} actions` : null, pricing.billing.time ? formatMinutes(pricing.billing.minutes) : null, pricing.billing.sessionCount ? `${num(pricing.billing.sessionCount)} sessions` : null]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         </div>
-        <PricingForm rows={pricing.rows} editable={editable} note={site.demo ? "Example prices on the demo site." : editable ? null : "Prices are set on the deployed console."} />
+        <PricingForm
+          rows={pricing.rows}
+          rates={pricing.rates}
+          billing={{ time: pricing.billing.time, minutes: pricing.billing.minutes, sessions: pricing.billing.sessions, sessionCount: pricing.billing.sessionCount }}
+          editable={editable}
+          note={site.demo ? "Example prices on the demo site." : editable ? null : "Prices are set on the deployed console."}
+        />
       </Panel>
 
       <div className="mt-3 grid gap-3 md:grid-cols-3">

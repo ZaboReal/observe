@@ -7,6 +7,7 @@ import { LiveToggle } from "@/components/live";
 import { Time } from "@/components/time";
 import { Empty, Method, Mono, OutcomePill, Page, PageHeader, Panel, RiskTag, SegCount, Segmented, buttonClass } from "@/components/ui";
 import { OUTCOME_LONG, TIER_LABEL, num, personOf } from "@/lib/format";
+import { agentBilling } from "@/lib/billing";
 import { formatPrice, formatTotal } from "@/lib/money";
 import { EXPORT_CAP, RANGES, entryLog, parseRange, seenDrivers } from "@/lib/queries";
 import { currentSite } from "@/lib/current-site";
@@ -40,7 +41,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const range = parseRange(one(params.range));
   const o = one(params.outcome);
   const outcome = OUTCOMES.includes(o as Outcome) ? (o as Outcome) : undefined;
-  const { lines, counts, billed } = entryLog({ siteId: site.id,
+  const { lines, counts } = entryLog({ siteId: site.id,
     range,
     sensitiveOnly: one(params.sensitive) === "1",
     driverId: one(params.driver),
@@ -48,6 +49,9 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
     limit: SHOWN,
   });
   const total = outcome ? counts[outcome] : counts.total;
+  const now = Date.now();
+  const billing = agentBilling(site.id, now - (RANGES.find((r) => r.id === range)?.ms ?? 0), now, now);
+  const billedParts = [billing.actions ? `${formatTotal(billing.actions)} for actions` : null, billing.time ? `${formatTotal(billing.time)} for agent time` : null, billing.sessions ? `${formatTotal(billing.sessions)} for sessions` : null].filter(Boolean);
   const exportParams: Record<string, string> = { range };
   for (const k of ["sensitive", "driver", "outcome"]) {
     const v = one(params[k]);
@@ -63,7 +67,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
             Every agent action, <em>on record</em>
           </>
         }
-        description={`What each agent did, who it acted for, and what your rules decided. Observe mode: decisions are logged, nothing is blocked.${billed > 0 ? ` Agents were billed ${formatTotal(billed)} in this range.` : ""}`}
+        description={`What each agent did, who it acted for, and what your rules decided. Observe mode: decisions are logged, nothing is blocked.${billing.total > 0 ? ` Agents were billed ${formatTotal(billing.total)} in this range${billedParts.length > 1 ? `: ${billedParts.join(", ")}` : ""}.` : ""}`}
         actions={
           <>
             <Segmented label="Time range" items={RANGES.map((x) => ({ href: href(params, { range: x.id }), label: x.id, active: x.id === range }))} />
