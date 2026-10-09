@@ -75,10 +75,14 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
-/** Store a batch as the sensor sent it, minus the `lab` raw-event stream (only sent on labelled test runs). */
-export function putBatch(siteId: string, sessionId: string, receivedAt: number, meta: BatchMeta, body: unknown): Promise<number> {
-  const { lab: _lab, ...kept } = body as Record<string, unknown>;
-  return rpc("observe_put_batch_v2", { p_site: siteId, p_session_id: sessionId, p_received_at: receivedAt, p_meta: meta, p_body: kept });
+/**
+ * Store a batch as the sensor sent it. The `lab` raw-event stream (pointer, key and wheel timings, sent only in lab
+ * capture) is kept for test sites such as the agent lab and dropped everywhere else.
+ */
+export function putBatch(siteId: string, sessionId: string, receivedAt: number, meta: BatchMeta, body: unknown, keepLab = false): Promise<number> {
+  const { lab, ...kept } = body as Record<string, unknown>;
+  const stored = keepLab && Array.isArray(lab) && lab.length ? { ...kept, lab } : kept;
+  return rpc("observe_put_batch_v2", { p_site: siteId, p_session_id: sessionId, p_received_at: receivedAt, p_meta: meta, p_body: stored });
 }
 
 /** Batches of every site this console may see, stored after `afterId` and received at or after `since`, oldest first. */

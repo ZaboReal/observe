@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   if (site.stored && dbWritable) {
     // Store it; the replay after the response brings it (and anything other instances stored) into memory.
     try {
-      await putBatch(site.id, batch.sessionId, now, meta, body);
+      await putBatch(site.id, batch.sessionId, now, meta, body, site.environment === "Test");
     } catch (e) {
       console.error("[observe] could not store batch:", e instanceof Error ? e.message : e);
       return new Response("Could not store batch", { status: 503, headers: CORS });
