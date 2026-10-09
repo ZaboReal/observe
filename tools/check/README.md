@@ -72,6 +72,25 @@ For an agent, open the page, then give it the instruction: *"Do the five test ta
 
 For people, include a few who use a screen reader, voice dictation or password-manager autofill: those are the people most likely to be mistaken for an agent.
 
+### Agents that run in the cloud
+
+Meta Muse, Instinct and ChatGPT agent drive a browser on their own machines, so they cannot open localhost. The console hosts the same page publicly as the **agent lab**:
+
+```
+https://observe-console-theta.vercel.app/lab?observe_driver=LABEL
+```
+
+Sessions land in the console under the *Agent lab* site (not arzach.ai), with lab capture on: every pointer, key and wheel event's timing, plus a snapshot of the machine (user agent, screen and window size, time zone, GPU renderer, camera and microphone counts). Never what anyone types. Add `&observe_debug=1` to see the sensor's panel; leave it off for agents, since it covers part of the page.
+
+| Who drives | `LABEL` |
+| --- | --- |
+| Meta Muse | `muse` |
+| Instinct | `instinct` |
+| ChatGPT agent | `chatgpt-agent` |
+| A person, as a baseline | `human-mac`, `human-phone`, … |
+
+Give the agent the link and *"Do the test tasks listed on this page, then press Finish."* Number repeat runs (`muse-2`, `muse-3`) so each is easy to find. The raw batches are in the `observe.batches` table (site `lab`); the `lab-env` record holds the machine snapshot.
+
 Then report every labelled session from the last hour (or `--since 120m`):
 
 ```bash

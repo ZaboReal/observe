@@ -4,7 +4,8 @@ import { SESSION_COOKIE, authEnabled, validSession } from "@/lib/auth";
 
 /**
  * Keeps a deployed console behind its password. The sensor's collector stays open (it only takes its sites' keys),
- * decide authenticates with a site's secret key, and the hosted sensor, its manifest and llms.txt are public.
+ * decide authenticates with a site's secret key, and the hosted sensor, its manifest, llms.txt and the agent lab are
+ * public.
  */
 export async function proxy(req: NextRequest) {
   if (!authEnabled() || (await validSession(req.cookies.get(SESSION_COOKIE)?.value))) return NextResponse.next();
@@ -16,7 +17,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Open: sign-in, the collector, decide (it takes the site's secret key), the hosted sensor and package, and the
-  // agent install guide.
-  matcher: ["/((?!login|api/v1/sdk/|api/v1/decide|sensor/|packages/|llms\\.txt|_next/static|_next/image|favicon\\.ico|icon|robots\\.txt).*)"],
+  // Open: sign-in, the collector, decide (it takes the site's secret key), the hosted sensor and package, the agent
+  // install guide, and the agent lab's test page.
+  matcher: ["/((?!login|api/v1/sdk/|api/v1/decide|sensor/|packages/|llms\\.txt|lab|_next/static|_next/image|favicon\\.ico|icon|robots\\.txt).*)"],
 };

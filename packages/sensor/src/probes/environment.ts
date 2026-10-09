@@ -35,6 +35,78 @@ export function probeSoftwareGl(t: number): ProbeResult[] {
 }
 
 /**
+ * Lab capture only: what kind of machine and browser the page runs in, so a new agent's environment can be written
+ * down (a cloud VM's software GPU, missing cameras, fixed window sizes). Unlike the standard probes it keeps the
+ * renderer string. Nothing here is page content or a value anyone typed.
+ */
+export async function labEnvironment(): Promise<Record<string, unknown>> {
+  if (typeof window === "undefined") return {};
+  const nav = navigator as Navigator & {
+    deviceMemory?: number;
+    userAgentData?: { brands?: { brand: string; version: string }[]; mobile?: boolean; platform?: string; getHighEntropyValues?: (hints: string[]) => Promise<Record<string, unknown>> };
+    connection?: { effectiveType?: string; rtt?: number };
+  };
+  const mq = (q: string) => {
+    try {
+      return matchMedia(q).matches;
+    } catch {
+      return null;
+    }
+  };
+  const env: Record<string, unknown> = {
+    ua: nav.userAgent,
+    platform: nav.platform,
+    languages: [...(nav.languages ?? [])].slice(0, 6),
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    tzOffset: new Date().getTimezoneOffset(),
+    screen: { w: screen.width, h: screen.height, aw: screen.availWidth, ah: screen.availHeight, depth: screen.colorDepth },
+    window: { iw: innerWidth, ih: innerHeight, ow: outerWidth, oh: outerHeight, x: screenX, y: screenY },
+    dpr: devicePixelRatio,
+    cores: nav.hardwareConcurrency ?? null,
+    memory: nav.deviceMemory ?? null,
+    touchPoints: nav.maxTouchPoints ?? 0,
+    pointer: { fine: mq("(pointer: fine)"), coarse: mq("(pointer: coarse)"), hover: mq("(hover: hover)"), anyFine: mq("(any-pointer: fine)") },
+    webdriver: nav.webdriver ?? null,
+    plugins: nav.plugins?.length ?? null,
+    pdfViewer: (nav as Navigator & { pdfViewerEnabled?: boolean }).pdfViewerEnabled ?? null,
+    connection: nav.connection ? { type: nav.connection.effectiveType ?? null, rtt: nav.connection.rtt ?? null } : null,
+    historyLength: history.length,
+    hasReferrer: Boolean(document.referrer),
+    focused: document.hasFocus(),
+    visibility: document.visibilityState,
+    chromeKeys: typeof (window as Window & { chrome?: object }).chrome === "object" ? Object.keys((window as Window & { chrome?: object }).chrome ?? {}).slice(0, 12) : null,
+  };
+  if (nav.userAgentData) {
+    env.uaData = { brands: nav.userAgentData.brands, mobile: nav.userAgentData.mobile, platform: nav.userAgentData.platform };
+    try {
+      env.uaHigh = await nav.userAgentData.getHighEntropyValues?.(["platformVersion", "architecture", "model", "fullVersionList", "formFactors"]);
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    const gl = document.createElement("canvas").getContext("webgl") as WebGLRenderingContext | null;
+    const ext = gl?.getExtension("WEBGL_debug_renderer_info");
+    if (gl) env.gl = { vendor: String(ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR)), renderer: String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) };
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    /* ignore */
+  }
+  try {
+    const devices = await navigator.mediaDevices?.enumerateDevices();
+    if (devices) env.mediaDevices = devices.reduce<Record<string, number>>((n, d) => ((n[d.kind] = (n[d.kind] ?? 0) + 1), n), {});
+  } catch {
+    /* ignore */
+  }
+  try {
+    env.voices = typeof speechSynthesis !== "undefined" ? speechSynthesis.getVoices().length : null;
+  } catch {
+    /* ignore */
+  }
+  return env;
+}
+
+/**
  * Watches for the viewport shrinking by a banner's height while the window stays the same size,
  * which is what Chrome's "started debugging this browser" bar does when an extension attaches the debugger.
  * Unvalidated: treat as a lab signal.

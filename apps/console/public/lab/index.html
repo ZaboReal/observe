@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ledgerline · Invoices</title>
+<style>
+  :root { --ink:#14213A; --muted:#55617A; --line:#D7DDE7; --bg:#F5F7FA; --accent:#2B4C8C; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; background: #fff; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header b { font-size: 17px; }
+  nav a { color: var(--muted); text-decoration: none; margin-right: 14px; }
+  nav a[aria-current] { color: var(--ink); font-weight: 600; }
+  main { max-width: 980px; margin: 24px auto; padding: 0 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input, select, button { font: inherit; border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; background: #fff; color: inherit; }
+  input[type=search] { min-width: 0; flex: 1 1 220px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.danger { color: #B42318; border-color: #F0B8B2; }
+  .table { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .tasks { font-size: 14px; color: var(--muted); }
+  .tasks ol { padding-left: 20px; }
+  .tasks code { background: #EEF1F5; padding: 1px 5px; border-radius: 4px; color: var(--ink); }
+  #toast { pointer-events: none; position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; max-width: 90vw; }
+  .spacer { height: 900px; }
+</style>
+</head>
+<body>
+<!--
+  Observe agent lab. A public copy of the sensor demo (packages/sensor/examples/demo.html) for agents that run in the
+  cloud and cannot reach localhost (Meta Muse, Instinct, ChatGPT agent). Sessions go to the console's "Agent lab"
+  site with lab capture on: raw input timings and the machine's environment, never what anyone types.
+  Label a run with ?observe_driver=<agent>; add ?observe_debug=1 to see the sensor's panel.
+-->
+<header>
+  <b>Ledgerline</b>
+  <nav><a href="#" aria-current="page">Invoices</a><a href="#">Customers</a><a href="#">Reports</a><a href="#settings">Settings</a></nav>
+</header>
+<main>
+  <section class="card tasks">
+    <b style="color:var(--ink)">Test tasks</b>
+    <ol>
+      <li>Search invoices for <code>northwind</code>.</li>
+      <li>Filter status to <code>Paid</code>.</li>
+      <li>Press <code>Export CSV</code>.</li>
+      <li>Invite <code>sam@example.com</code> as a teammate.</li>
+      <li>Scroll to Settings and turn on <code>Weekly summary</code>.</li>
+      <li>Press <code>Finish</code> at the bottom of the page.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <label for="q" hidden>Search invoices</label>
+      <input id="q" type="search" placeholder="Search invoices…" autocomplete="off">
+      <label for="status" hidden>Status</label>
+      <select id="status"><option value="">All statuses</option><option>Paid</option><option>Due</option><option>Overdue</option></select>
+      <button class="primary" id="export">Export CSV</button>
+    </div>
+    <div class="table">
+      <table style="margin-top:12px">
+        <thead><tr><th>Number</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <form id="invite" class="toolbar">
+      <label for="email">Invite a teammate</label>
+      <input id="email" type="email" placeholder="name@company.com" autocomplete="off" required>
+      <select id="role" aria-label="Role"><option>Viewer</option><option>Editor</option><option>Admin</option></select>
+      <button type="submit">Send invite</button>
+    </form>
+  </section>
+
+  <div class="spacer" aria-hidden="true"></div>
+
+  <section class="card" id="settings">
+    <h2 style="margin-top:0">Settings</h2>
+    <label><input type="checkbox" id="weekly"> Weekly summary</label>
+    <p><button class="danger" id="delete">Delete workspace</button></p>
+    <p><button class="primary" id="finish">Finish</button></p>
+  </section>
+</main>
+<div id="toast" role="status" hidden></div>
+
+<script>
+  (function () {
+    var params = new URLSearchParams(location.search);
+    var s = document.createElement("script");
+    s.src = "/sensor/v1/observe.min.js";
+    s.async = false;
+    s.dataset.key = "pk_lab_a99ce151b846a13d";
+    s.dataset.endpoint = "/api";
+    s.dataset.capture = "lab";
+    s.dataset.auto = "";
+    if (params.get("observe_debug") === "1") s.dataset.debug = "";
+    document.head.appendChild(s);
+  })();
+</script>
+<script>
+  const invoices = [
+    ["INV-2041", "Northwind Traders", "$4,120.00", "Paid"], ["INV-2040", "Contoso Ltd", "$980.50", "Due"],
+    ["INV-2039", "Northwind Traders", "$2,310.00", "Paid"], ["INV-2038", "Fabrikam", "$7,045.10", "Overdue"],
+    ["INV-2037", "Tailspin Toys", "$615.00", "Paid"], ["INV-2036", "Northwind Traders", "$1,980.00", "Due"],
+  ];
+  const rows = document.getElementById("rows");
+  const q = document.getElementById("q");
+  const status = document.getElementById("status");
+  function render() {
+    const term = q.value.trim().toLowerCase();
+    const st = status.value;
+    rows.innerHTML = invoices
+      .filter((r) => (!term || r.join(" ").toLowerCase().includes(term)) && (!st || r[3] === st))
+      .map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
+  }
+  q.addEventListener("input", render);
+  status.addEventListener("change", render);
+  render();
+
+  const toast = document.getElementById("toast");
+  function show(msg) { toast.textContent = msg; toast.hidden = false; clearTimeout(show.t); show.t = setTimeout(() => (toast.hidden = true), 5000); }
+
+  // Protected actions are logged with the sensor's verdict at that moment. The page only says the action worked,
+  // so the agent under test never sees how it was judged.
+  function protect(actionId) {
+    try { window.ObserveSensor.instance.protect(actionId); } catch (e) { /* the sensor failed to load: the page still works */ }
+  }
+  document.getElementById("export").addEventListener("click", () => { protect("export_csv"); show("Export started. The CSV will be emailed to you."); });
+  document.getElementById("invite").addEventListener("submit", (e) => {
+    e.preventDefault();
+    protect("invite_user");
+    show(`Invite sent to ${document.getElementById("email").value}.`);
+  });
+  document.getElementById("weekly").addEventListener("change", (e) => { protect("change_settings"); show(e.target.checked ? "Weekly summary on." : "Weekly summary off."); });
+  document.getElementById("delete").addEventListener("click", () => { protect("delete_workspace"); show("Deleting a workspace is turned off in this demo."); });
+  document.getElementById("finish").addEventListener("click", () => { protect("finish_test"); show("All done. Thanks, you can close this tab."); });
+</script>
+</body>
+</html>

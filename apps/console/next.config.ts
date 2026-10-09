@@ -18,7 +18,12 @@ const config: NextConfig = {
       { source: "/sensor/manifest.json", headers: [...shared, { key: "Cache-Control", value: "public, max-age=300" }] },
       { source: "/packages/:file", headers: [{ key: "Cache-Control", value: "public, max-age=300" }] },
       { source: "/llms.txt", headers: [{ key: "Cache-Control", value: "public, max-age=300" }] },
+      { source: "/lab/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=60" }, { key: "X-Robots-Tag", value: "noindex" }] },
     ];
+  },
+  // The agent lab (public/lab): a public test page for agents that run in the cloud.
+  async rewrites() {
+    return [{ source: "/lab", destination: "/lab/index.html" }];
   },
   poweredByHeader: false,
   devIndicators: false,

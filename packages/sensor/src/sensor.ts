@@ -11,7 +11,7 @@ import { MessageWatcher } from "./probes/messages";
 import { probeCss } from "./probes/presence";
 import { probeAutomation, type ProbeResult } from "./probes/automation";
 import { StackWatcher } from "./probes/stack";
-import { DualFocusWatcher, probeDebugger, probeScreen, probeSoftwareGl, ViewportShiftWatcher } from "./probes/environment";
+import { DualFocusWatcher, labEnvironment, probeDebugger, probeScreen, probeSoftwareGl, ViewportShiftWatcher } from "./probes/environment";
 import { WebMcpWatcher } from "./probes/webmcp";
 import { buildIndex, DRIVERS, type DriverSignature, type RegistryIndex } from "./registry";
 import type { Identity, Passport, ProtectedAction, ProtectedActionSnapshot, Reason, SensorConfig, SensorEvent } from "./types";
@@ -338,6 +338,7 @@ export class Sensor {
       else document.addEventListener("DOMContentLoaded", mount, { once: true });
     }
     this.transport.push({ type: "start", t: 0, sdk: VERSION, capture: this.config.capture, webmcp: WebMcpWatcher.supported() });
+    if (lab) void labEnvironment().then((env) => this.transport.push({ type: "lab-env", t: this.t(), env }));
     this.recompute(true);
   }
 
