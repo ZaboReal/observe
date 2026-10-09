@@ -3,10 +3,14 @@
 import { useState } from "react";
 import type { ObserveDecision } from "@observe/next";
 
+import { SHOW_DECISIONS } from "@/lib/display";
+
 import { Decision } from "./decision";
 
 interface ExportResult {
   decision: ObserveDecision;
+  /** Agent billing: what the agent was billed for this export. */
+  charge?: { display: string; to: string } | null;
   filename?: string;
   csv?: string;
   error?: string;
@@ -41,14 +45,19 @@ export function ExportButton() {
       {failed && <p className="error">Export failed: {failed}</p>}
       {result && (
         <div className="result">
-          <Decision decision={result.decision} />
+          {SHOW_DECISIONS && <Decision decision={result.decision} />}
           {result.error && <p className="error">{result.error}</p>}
+          {result.charge && (
+            <p className="charge">
+              <strong>{result.charge.display}</strong> billed to {result.charge.to} for this export.
+            </p>
+          )}
           {href && (
             <>
               <a href={href} download={result.filename}>
                 Download {result.filename}
               </a>
-              <pre>{result.csv}</pre>
+              {SHOW_DECISIONS && <pre>{result.csv}</pre>}
             </>
           )}
         </div>

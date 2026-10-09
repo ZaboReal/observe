@@ -220,3 +220,12 @@ footer {
   margin-top: 40px;
   font-size: 13px;
 }
+
+.charge {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #ecfdf3;
+  color: var(--ok);
+  font-size: 14px;
+}

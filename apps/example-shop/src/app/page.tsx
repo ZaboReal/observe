@@ -1,5 +1,6 @@
 import { ExportButton } from "./export-button";
 import { InviteForm } from "./invite-form";
+import { SHOW_DECISIONS } from "@/lib/display";
 import { INVOICES, money } from "@/lib/invoices";
 
 export default function Page() {
@@ -47,10 +48,12 @@ export default function Page() {
         <InviteForm />
       </section>
 
-      <footer className="muted">
-        Exports and invites are checked with <code>observe.check()</code> on the server. Observe is in observe mode: it
-        reports what it would do and blocks nothing unless this app acts on <code>wouldBlock</code>.
-      </footer>
+      {SHOW_DECISIONS && (
+        <footer className="muted">
+          Exports and invites are checked with <code>observe.check()</code> on the server. Observe is in observe mode: it
+          reports what it would do and blocks nothing unless this app acts on <code>wouldBlock</code>.
+        </footer>
+      )}
     </main>
   );
 }
