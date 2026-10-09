@@ -9,9 +9,10 @@ import { Recheck } from "@/components/recheck";
 import { SessionTrack } from "@/components/session-track";
 import { Time } from "@/components/time";
 import { Avatar, Empty, LiveDot, Method, Mono, OutcomePill, Page, Panel, RiskTag, ShareBar, Who } from "@/components/ui";
+import { VisitTabs } from "@/components/visit-tabs";
 import { KIND_LABEL, TIER_LABEL, accountText, ago, duration, num, personOf, personText } from "@/lib/format";
 import { agentShare } from "@/lib/jev-questions";
-import { sessionDetail } from "@/lib/queries";
+import { sessionDetail, sessionVisit } from "@/lib/queries";
 import { currentSite } from "@/lib/current-site";
 import { syncStore } from "@/lib/sync";
 import { allowedScopes } from "@/lib/views";
@@ -35,6 +36,7 @@ export default async function SessionPage({ params }: Props) {
   const d = sessionDetail(site.id, (await params).id);
   if (!d) notFound();
   const { session: s, row, events, now } = d;
+  const visit = sessionVisit(site.id, s, now);
   const person = personOf(row.email);
   const account = site.anonymous ? null : accountText(s.accountId, d.account?.name ?? s.accountId);
 
@@ -99,6 +101,8 @@ export default async function SessionPage({ params }: Props) {
           <Mono className="text-ink-3">{s.id}</Mono>
         </div>
       </header>
+
+      {visit.length > 1 && <VisitTabs tabs={visit} current={s.id} />}
 
       <div className="grid items-start gap-3 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[380px_minmax(0,1fr)]">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
