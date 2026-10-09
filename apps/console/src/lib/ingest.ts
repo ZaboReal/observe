@@ -300,7 +300,7 @@ export function ingest(batch: Batch, now: number, meta: BatchMeta, siteId: strin
         break;
       case "protect":
         applyPassport(rec, r.passport);
-        push(rec, { t: at(r.t), type: "action", route: batch.page, action: actionFor(r.actionId, batch.page), driver: s.verdict });
+        pushAction(rec, { t: at(r.t), type: "action", route: batch.page, action: actionFor(r.actionId, batch.page), driver: s.verdict }, "protect");
         break;
     }
   }
@@ -322,7 +322,7 @@ function ingestDecisions(batch: Batch, now: number, siteId: string) {
   const s = rec.session;
   for (const r of batch.records) {
     if (r.type !== "decision") continue;
-    push(rec, { t: Math.max(0, now - s.startedAt), type: "action", route: batch.page, action: actionFor(r.actionId, batch.page), driver: s.verdict });
+    pushAction(rec, { t: Math.max(0, now - s.startedAt), type: "action", route: batch.page, action: actionFor(r.actionId, batch.page), driver: s.verdict }, "decision");
   }
   Object.assign(s, summarise(rec.events));
   s.lastAt = s.startedAt + (rec.events[rec.events.length - 1]?.t ?? 0);
@@ -350,6 +350,30 @@ function applyMeta(rec: SensorRecord, meta: BatchMeta) {
 }
 
 /** Append in time order. Returns false when the session is full. */
+/** How far apart the page's protect record and the server's decision for one request can land, ms. */
+const PAIR_WINDOW_MS = 15_000;
+// Which side reported each action event, and which events already stand for a pair.
+const actionSource = new WeakMap<SessionEvent, "protect" | "decision">();
+const pairedEvents = new WeakSet<SessionEvent>();
+
+/**
+ * One protected request is reported twice: by the sensor (its protect record, when the page sends the request) and
+ * by the site's server (the decision it asked /api/v1/decide for). Whichever arrives second pairs with the first
+ * and adds nothing, so the action, and any price for it, counts once. Two real requests still count twice.
+ */
+function pushAction(rec: SensorRecord, e: SessionEvent, source: "protect" | "decision"): void {
+  const id = e.action?.id;
+  for (let i = rec.events.length - 1; i >= 0; i--) {
+    const other = rec.events[i]!;
+    if (other.t < e.t - PAIR_WINDOW_MS) break;
+    if (other.t > e.t + PAIR_WINDOW_MS || other.type !== "action" || other.action?.id !== id) continue;
+    if (pairedEvents.has(other) || actionSource.get(other) === source) continue;
+    pairedEvents.add(other);
+    return;
+  }
+  if (push(rec, e)) actionSource.set(e, source);
+}
+
 function push(rec: SensorRecord, e: SessionEvent): boolean {
   if (rec.events.length >= LIMITS.eventsPerSession) return false;
   let i = rec.events.length;

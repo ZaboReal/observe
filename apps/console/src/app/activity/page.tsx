@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-const OUTCOMES: Outcome[] = ["admit", "slow", "request_access", "ask", "refuse"];
+const OUTCOMES: Outcome[] = ["admit", "bill", "slow", "request_access", "ask", "refuse"];
 const SHOWN = 100;
 
 function href(params: Params, changes: Record<string, string | null>): string {
