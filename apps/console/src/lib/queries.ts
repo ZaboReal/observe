@@ -6,6 +6,7 @@ import { exactMatch } from "./passport";
 import { decide } from "./policy";
 import { HISTORY, store } from "./store";
 import { OUTCOME_RANK } from "./format";
+import { personKey, visitContaining, visitList } from "./visits";
 import type { ActionDef, Driver, EntryLogLine, Outcome, Reason, Scope, Session, SessionEvent, Verdict } from "./types";
 
 export type Range = "1h" | "24h" | "7d";
@@ -157,23 +158,30 @@ export interface SessionFilter {
   range?: Range;
 }
 
+/** The filters other than who is driving, each as a test on one session. */
+function sessionTests(filter: SessionFilter, now: number): ((s: Session) => boolean)[] {
+  const tests: ((s: Session) => boolean)[] = [];
+  const { driverId, accountId } = filter;
+  if (driverId) tests.push((s) => (s.driverId ?? (s.verdict === "agent" ? UNNAMED_ID : null)) === driverId);
+  if (accountId) tests.push((s) => s.accountId === accountId);
+  if (filter.live) tests.push((s) => s.endedAt > now);
+  const q = filter.q?.trim().toLowerCase();
+  if (q) {
+    tests.push((s) => {
+      const user = getUser(s.userId);
+      const account = getAccount(s.accountId);
+      return `${user?.email ?? ""} ${account?.name ?? ""} ${s.id}`.toLowerCase().includes(q);
+    });
+  }
+  return tests;
+}
+
 export function listSessions(filter: SessionFilter, now = Date.now()): { rows: SessionRow[]; total: number; counts: Totals } {
   const { siteId } = filter;
   const { from, to } = bounds(filter.range ?? "24h", now);
   const all = store.sessions(from, to, now, siteId);
-  const q = filter.q?.trim().toLowerCase();
-  const matching = all.filter((s) => {
-    if (filter.driverId && (s.driverId ?? (s.verdict === "agent" ? UNNAMED_ID : null)) !== filter.driverId) return false;
-    if (filter.accountId && s.accountId !== filter.accountId) return false;
-    if (filter.live && s.endedAt <= now) return false;
-    if (q) {
-      const user = getUser(s.userId);
-      const account = getAccount(s.accountId);
-      const hay = `${user?.email ?? ""} ${account?.name ?? ""} ${s.id}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  });
+  const tests = sessionTests(filter, now);
+  const matching = all.filter((s) => tests.every((test) => test(s)));
   const counts = totals(matching);
   const shown = filter.verdict && filter.verdict !== "all" ? matching.filter((s) => s.verdict === filter.verdict) : matching;
   const rows = shown
@@ -181,6 +189,23 @@ export function listSessions(filter: SessionFilter, now = Date.now()): { rows: S
     .reverse()
     .map((s) => toRow(s, now));
   return { rows, total: shown.length, counts };
+}
+
+/** The Sessions page: one row per visit, a person's tabs together (see visits.ts). A visit passes a filter when any of its tabs does. */
+export function listVisits(filter: SessionFilter, now = Date.now()) {
+  const { from, to } = bounds(filter.range ?? "24h", now);
+  const sessions = store.sessions(from, to, now, filter.siteId);
+  return visitList(sessions, { verdict: filter.verdict, tests: sessionTests(filter, now), limit: filter.limit, toRow: (s) => toRow(s, now) });
+}
+
+/** Every tab of the visit this session belongs to, oldest first, with its page count. Empty when the session stands alone. */
+export function sessionVisit(siteId: string, session: Session, now = Date.now()): (SessionRow & { pages: number })[] {
+  if (personKey(session.userId) === null) return [];
+  // A visit's earlier tabs can open before this one, so look back a day (the list's default range).
+  const nearby = store.sessions(session.startedAt - DAY, now, now, siteId).filter((s) => s.userId === session.userId);
+  const tabs = visitContaining(nearby, session.id) ?? [];
+  if (tabs.length < 2) return [];
+  return tabs.map((s) => ({ ...toRow(s, now), pages: store.events(s, now).filter((e) => e.type === "page").length }));
 }
 
 // ───────────────────────── Overview ─────────────────────────

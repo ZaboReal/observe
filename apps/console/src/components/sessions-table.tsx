@@ -6,18 +6,22 @@ import { useRouter } from "next/navigation";
 
 import { TIER_LABEL, accountText, ago, clock, personOf } from "@/lib/format";
 import type { SessionRow } from "@/lib/queries";
+import { agentTabsLabel, type VisitMeta } from "@/lib/visits";
 
 import { LocalTime } from "./local-time";
 import { StatusPill, Who } from "./ui";
 
-/** Sessions in the site's style: Person, Driven by, Status, Last action. Phones keep the first two. */
+/**
+ * Sessions in the site's style: Person, Driven by, Status, Last action. Phones keep the first two.
+ * A row with `visit` stands for several tabs of one visit (see visits.ts) and links to its lead tab.
+ */
 export function SessionsTable({
   rows,
   now,
   anonymous = false,
   markSensor = false,
 }: {
-  rows: SessionRow[];
+  rows: (SessionRow & { visit?: VisitMeta })[];
   now: number;
   /** Visitors are not signed in, so there is no account to show. */
   anonymous?: boolean;
@@ -26,11 +30,13 @@ export function SessionsTable({
 }) {
   const router = useRouter();
   const seen = useRef<Set<string> | null>(null);
-  const fresh = seen.current ? new Set(rows.filter((r) => !seen.current!.has(r.id)).map((r) => r.id)) : new Set<string>();
+  // A visit keeps its first tab's id as it grows, so a new tab does not flash its row as new.
+  const keyOf = (r: (typeof rows)[number]) => r.visit?.id ?? r.id;
+  const fresh = seen.current ? new Set(rows.map(keyOf).filter((k) => !seen.current!.has(k))) : new Set<string>();
 
   useEffect(() => {
     seen.current ??= new Set();
-    for (const r of rows) seen.current.add(r.id);
+    for (const r of rows) seen.current.add(keyOf(r));
   }, [rows]);
 
   return (
@@ -47,22 +53,26 @@ export function SessionsTable({
         {rows.map((r) => {
           const person = personOf(r.email);
           const account = anonymous ? null : accountText(r.accountId, r.account);
+          const tabs = r.visit?.tabs ?? 1;
           return (
             <tr
-              key={r.id}
+              key={keyOf(r)}
               onClick={(e) => {
                 if ((e.target as HTMLElement).closest("a")) return;
                 router.push(`/sessions/${r.id}`);
               }}
-              className={`link ${fresh.has(r.id) ? "row-new" : ""}`}
+              className={`link ${fresh.has(keyOf(r)) ? "row-new" : ""}`}
             >
               <td>
                 <div className="flex min-w-0 items-center gap-2">
                   {r.live && <span className="live sm" title="Live" />}
-                  <Link href={`/sessions/${r.id}`} className="min-w-0 truncate font-medium hover:underline">
-                    {person.label}
-                    {person.device && <span className="ml-1.5 font-mono text-[12px] font-normal text-ink-3">{person.device}</span>}
-                  </Link>
+                  <div className="flex min-w-0 items-baseline gap-1.5">
+                    <Link href={`/sessions/${r.id}`} className="min-w-0 truncate font-medium hover:underline">
+                      {person.label}
+                      {person.device && <span className="ml-1.5 font-mono text-[12px] font-normal text-ink-3">{person.device}</span>}
+                    </Link>
+                    {tabs > 1 && <span className="shrink-0 text-[12.5px] whitespace-nowrap text-ink-3">· {tabs} tabs</span>}
+                  </div>
                 </div>
                 <div className={`mt-0.5 truncate text-[12px] text-ink-3 ${r.live ? "pl-[14px]" : ""}`}>
                   {account}
@@ -82,7 +92,9 @@ export function SessionsTable({
                     ? "Not enough evidence yet"
                     : r.verdict === "human"
                       ? `${Math.round(r.confidence * 100)}% sure`
-                      : `${r.tier === "unknown-automation" ? "Automated" : TIER_LABEL[r.tier]} · ${Math.round(r.confidence * 100)}%`}
+                      : r.visit && tabs > 1
+                        ? agentTabsLabel(r.visit.agentTabs, tabs)
+                        : `${r.tier === "unknown-automation" ? "Automated" : TIER_LABEL[r.tier]} · ${Math.round(r.confidence * 100)}%`}
                 </div>
                 {r.verdict === "agent" && (
                   <div className="mt-1.5 pl-[15px] sm:hidden">

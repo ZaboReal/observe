@@ -6,7 +6,7 @@ import { SessionsTable } from "@/components/sessions-table";
 import { Empty, Page, PageHeader, Panel, SegCount, Segmented } from "@/components/ui";
 import { getAccount } from "@/lib/catalog";
 import { accountText, num } from "@/lib/format";
-import { RANGES, listSessions, parseRange, seenDrivers } from "@/lib/queries";
+import { RANGES, listVisits, parseRange, seenDrivers } from "@/lib/queries";
 import { currentSite } from "@/lib/current-site";
 import { syncStore } from "@/lib/sync";
 import type { Verdict } from "@/lib/types";
@@ -38,7 +38,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   const verdict: Verdict | "all" = v === "human" || v === "agent" || v === "unknown" ? v : "all";
   const accountId = one(params.account);
   const now = Date.now();
-  const { rows, total, counts } = listSessions(
+  const { rows, total, counts } = listVisits(
     {
       siteId: site.id,
       range,
@@ -53,7 +53,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   );
 
   const tabs: { id: Verdict | "all"; label: string; n: number }[] = [
-    { id: "all", label: "All", n: counts.sessions },
+    { id: "all", label: "All", n: counts.all },
     { id: "agent", label: "Agents", n: counts.agent },
     { id: "human", label: "People", n: counts.human },
     { id: "unknown", label: "Undecided", n: counts.unknown },
@@ -65,8 +65,8 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
         title="Sessions"
         description={
           site.anonymous
-            ? `Every visit to ${site.host}, with who is driving it. Open one to see how it was decided.`
-            : "Every signed-in session, with who is driving it. Open one to see how it was decided."
+            ? `Every visit to ${site.host}, with who is driving it. Tabs from one visit share a row; open one to see how each tab was decided.`
+            : "Every signed-in visit, with who is driving it. Tabs from one visit share a row; open one to see how each tab was decided."
         }
         actions={
           <>
