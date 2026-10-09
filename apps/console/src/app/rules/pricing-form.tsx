@@ -17,10 +17,10 @@ const REACH: Record<PriceReach, string> = {
 const field = "h-9 w-full rounded-full border-0 bg-sheet font-mono text-[13px] shadow-ring outline-none placeholder:text-ink-3 focus:shadow-[0_0_0_2px_var(--color-ink)]";
 const box = `${field} pr-3 pl-6 text-right tabular`;
 
-/** Dollars as typed in a price box: 0.25, 0.002. */
+/** Dollars as typed in a price box: whole cents as 2.00 or 0.10, smaller amounts as 0.002. */
 function dollars(micro: number | null): string {
   if (!micro) return "";
-  return String(Number((micro / MICRO).toFixed(6)));
+  return micro % 10_000 === 0 ? (micro / MICRO).toFixed(2) : String(Number((micro / MICRO).toFixed(6)));
 }
 
 const ROW = "grid grid-cols-[minmax(0,1fr)_112px] items-center gap-x-4 gap-y-1 border-t border-line px-4 py-3 lg:grid-cols-[minmax(0,1fr)_200px_128px]";
